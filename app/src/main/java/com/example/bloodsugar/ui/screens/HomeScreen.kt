@@ -22,7 +22,9 @@ import androidx.compose.material.icons.filled.MedicalServices
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.AlertDialog
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DateRangePicker
@@ -40,7 +42,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -64,6 +69,7 @@ import com.example.bloodsugar.viewmodel.SharedViewModel
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 import kotlin.math.max
 
@@ -125,6 +131,9 @@ fun HomeScreen(
                 Column(modifier = Modifier.padding(16.dp)) {
                     BloodSugarChart(
                         chartData = uiState.chartData,
+                        selectedRecord = uiState.selectedRecord,
+                        onRecordClick = homeViewModel::onChartRecordSelected,
+                        onDismissTooltip = homeViewModel::onChartSelectionDismissed,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(250.dp)
@@ -141,11 +150,32 @@ fun HomeScreen(
                         }
                     }
                     Spacer(modifier = Modifier.height(8.dp))
-                    FlowRow(horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth()) {
-                        Button(onClick = { homeViewModel.setFilter(FilterType.TODAY) }) { Text("Today") }
-                        Button(onClick = { homeViewModel.setFilter(FilterType.THREE_DAYS) }) { Text("3 Days") }
-                        Button(onClick = { homeViewModel.setFilter(FilterType.SEVEN_DAYS) }) { Text("7 Days") }
-                        Button(onClick = { showCustomDateRangePicker = true }) { Text("Custom") }
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        val filterTypes = listOf(FilterType.TODAY, FilterType.THREE_DAYS, FilterType.SEVEN_DAYS, FilterType.CUSTOM)
+                        filterTypes.forEach { filter ->
+                            val isSelected = uiState.selectedFilter == filter
+                            Button(
+                                onClick = {
+                                    if (filter == FilterType.CUSTOM) showCustomDateRangePicker = true
+                                    else homeViewModel.setFilter(filter)
+                                },
+                                colors = if (isSelected) ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary) else ButtonDefaults.outlinedButtonColors(),
+                                border = if (isSelected) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                            ) {
+                                Text(
+                                    text = when (filter) {
+                                        FilterType.TODAY -> "Today"
+                                        FilterType.THREE_DAYS -> "3 Days"
+                                        FilterType.SEVEN_DAYS -> "7 Days"
+                                        FilterType.CUSTOM -> "Custom"
+                                    },
+                                    color = if(isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -418,6 +448,56 @@ fun BloodSugarChart(
 
             if (record.id == selectedRecord?.id) {
                 drawCircle(color = color.copy(alpha = 0.3f), radius = 16.dp.toPx(), center = point)
+            }
+        }
+
+        // Draw tooltip for selected record
+        selectedRecord?.let { record ->
+            val point = recordPoints[record.id]
+            if (point != null) {
+                val tooltipPaint = android.graphics.Paint().apply {
+                    color = android.graphics.Color.BLACK
+                    textSize = 14.sp.toPx()
+                    textAlign = android.graphics.Paint.Align.CENTER
+                }
+                val tooltipBackgroundPaint = android.graphics.Paint().apply {
+                    color = android.graphics.Color.WHITE
+                    alpha = 230
+                }
+                val date = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(record.timestamp))
+                val line1 = String.format("%.1f mmol/L at %s", record.value, date)
+                val line2 = record.comment
+
+                val textWidth = max(tooltipPaint.measureText(line1), tooltipPaint.measureText(line2))
+                val textHeight = tooltipPaint.descent() - tooltipPaint.ascent()
+                val boxPadding = 8.dp.toPx()
+
+                var boxLeft = point.x - (textWidth / 2) - boxPadding
+                var boxTop = point.y - (2 * textHeight) - (2 * boxPadding) - 16.dp.toPx() // 16dp above point
+
+                // Adjust if tooltip goes off-screen
+                if (boxLeft < 0) boxLeft = 0f
+                if (boxLeft + textWidth + 2 * boxPadding > size.width) {
+                    boxLeft = size.width - textWidth - 2 * boxPadding
+                }
+                if (boxTop < 0) {
+                    boxTop = point.y + 16.dp.toPx() // move below point
+                }
+
+                val boxRect = android.graphics.RectF(
+                    boxLeft,
+                    boxTop,
+                    boxLeft + textWidth + 2 * boxPadding,
+                    boxTop + (if (line2.isNotBlank()) 2.5f else 1.5f) * textHeight + 2 * boxPadding
+                )
+
+                drawIntoCanvas {
+                    it.nativeCanvas.drawRoundRect(boxRect, 8.dp.toPx(), 8.dp.toPx(), tooltipBackgroundPaint)
+                    it.nativeCanvas.drawText(line1, boxRect.centerX(), boxRect.top + boxPadding + textHeight, tooltipPaint)
+                    if (line2.isNotBlank()) {
+                        it.nativeCanvas.drawText(line2, boxRect.centerX(), boxRect.top + boxPadding + 2 * textHeight + 4.dp.toPx(), tooltipPaint)
+                    }
+                }
             }
         }
 

@@ -50,6 +50,13 @@ import com.example.bloodsugar.ui.screens.SettingsScreen
 import com.example.bloodsugar.ui.theme.BloodSugarTheme
 import com.example.bloodsugar.viewmodel.HomeViewModel
 import com.example.bloodsugar.viewmodel.SharedViewModel
+import com.example.bloodsugar.Screen
+
+val items = listOf(
+    Screen.Home,
+    Screen.Notifications,
+    Screen.Calculator,
+)
 
 class MainActivity : ComponentActivity() {
     

@@ -48,7 +48,8 @@ data class HomeUiState(
     val selectedFilter: FilterType = FilterType.TODAY,
     val customStartDate: Long? = null,
     val customEndDate: Long? = null,
-    val shownDialog: DialogType? = null
+    val shownDialog: DialogType? = null,
+    val selectedRecord: BloodSugarRecord? = null
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -121,7 +122,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 filterEnd ?: System.currentTimeMillis()
             }
 
-            val avg = records.map { it.value }.average().toFloat()
+            val avg = records.map { it.value }.average().takeIf { !it.isNaN() }?.toFloat() ?: 0f
             val min = records.minOfOrNull { it.value } ?: 0f
             val max = records.maxOfOrNull { it.value } ?: 0f
 

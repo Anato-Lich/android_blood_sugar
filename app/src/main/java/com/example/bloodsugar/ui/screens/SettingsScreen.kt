@@ -53,8 +53,10 @@ fun SettingsScreen(navController: NavController, settingsViewModel: SettingsView
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { settingsViewModel.saveSettings() }) {
-                Icon(Icons.Filled.Save, contentDescription = "Save Settings")
+            if (uiState.hasUnsavedChanges) {
+                FloatingActionButton(onClick = { settingsViewModel.saveSettings() }) {
+                    Icon(Icons.Filled.Save, contentDescription = "Save Settings")
+                }
             }
         }
     ) { padding ->

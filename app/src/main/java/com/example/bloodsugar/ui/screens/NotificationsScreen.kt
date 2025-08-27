@@ -84,8 +84,7 @@ fun NotificationsScreen(notificationsViewModel: NotificationsViewModel = viewMod
                         notification = notification,
                         onDelete = { notificationsViewModel.deleteNotification(notification) },
                         onToggle = { isEnabled -> notificationsViewModel.toggleNotification(notification, isEnabled) },
-                        onEdit = { editingNotification = notification },
-                        onCheckStatus = { notificationsViewModel.checkWorkStatus(notification) }
+                        onEdit = { editingNotification = notification }
                     )
                 }
             }
@@ -119,8 +118,7 @@ fun NotificationItem(
     notification: NotificationSetting,
     onDelete: () -> Unit,
     onToggle: (Boolean) -> Unit,
-    onEdit: () -> Unit,
-    onCheckStatus: () -> Unit
+    onEdit: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onEdit)
@@ -144,9 +142,7 @@ fun NotificationItem(
                 }
                 Text(text = description, style = MaterialTheme.typography.bodySmall)
             }
-            IconButton(onClick = onCheckStatus) {
-                Icon(Icons.Default.Info, contentDescription = "Check Status")
-            }
+            
             Switch(checked = notification.isEnabled, onCheckedChange = onToggle)
             IconButton(onClick = onDelete) {
                 Icon(Icons.Default.Delete, contentDescription = "Delete Notification")

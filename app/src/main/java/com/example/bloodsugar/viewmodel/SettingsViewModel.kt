@@ -15,7 +15,8 @@ data class SettingsUiState(
     val breakfastCoefficient: String = "",
     val dinnerCoefficient: String = "",
     val supperCoefficient: String = "",
-    val carbsPerBu: String = ""
+    val carbsPerBu: String = "",
+    val hasUnsavedChanges: Boolean = false
 )
 
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
@@ -39,7 +40,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                         breakfastCoefficient = breakfast.toString(),
                         dinnerCoefficient = dinner.toString(),
                         supperCoefficient = supper.toString(),
-                        carbsPerBu = carbsPerBu.toString()
+                        carbsPerBu = carbsPerBu.toString(),
+                        hasUnsavedChanges = false
                     )
                 }
             }.collect{}
@@ -47,7 +49,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun setBreakfastCoefficient(coefficient: String) {
-        _uiState.update { it.copy(breakfastCoefficient = coefficient) }
+        _uiState.update { it.copy(breakfastCoefficient = coefficient, hasUnsavedChanges = true) }
     }
 
     fun setDinnerCoefficient(coefficient: String) {
@@ -59,7 +61,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun setCarbsPerBu(carbs: String) {
-        _uiState.update { it.copy(carbsPerBu = carbs) }
+        _uiState.update { it.copy(carbsPerBu = carbs, hasUnsavedChanges = true) }
     }
 
     fun saveSettings() {
@@ -72,6 +74,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             settingsDataStore.saveCarbsPerBu(
                 carbs = _uiState.value.carbsPerBu.replace(',', '.').toFloatOrNull() ?: 10f
             )
+            _uiState.update { it.copy(hasUnsavedChanges = false) }
         }
     }
 
