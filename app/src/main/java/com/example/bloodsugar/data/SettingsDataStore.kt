@@ -20,6 +20,8 @@ class SettingsDataStore(context: Context) {
         val DINNER_COEFFICIENT = floatPreferencesKey("dinner_coefficient")
         val SUPPER_COEFFICIENT = floatPreferencesKey("supper_coefficient")
         val CARBS_PER_BU = floatPreferencesKey("carbs_per_bu")
+        val DAILY_CARBS_GOAL = floatPreferencesKey("daily_carbs_goal")
+        val INSULIN_DOSE_ACCURACY = floatPreferencesKey("insulin_dose_accuracy")
     }
 
     val breakfastCoefficient: Flow<Float> = dataStore.data.map {
@@ -38,6 +40,14 @@ class SettingsDataStore(context: Context) {
         it[PreferencesKeys.CARBS_PER_BU] ?: 10f
     }
 
+    val dailyCarbsGoal: Flow<Float> = dataStore.data.map {
+        it[PreferencesKeys.DAILY_CARBS_GOAL] ?: 200f
+    }
+
+    val insulinDoseAccuracy: Flow<Float> = dataStore.data.map {
+        it[PreferencesKeys.INSULIN_DOSE_ACCURACY] ?: 0.5f
+    }
+
     suspend fun saveCoefficients(breakfast: Float, dinner: Float, supper: Float) {
         dataStore.edit {
             it[PreferencesKeys.BREAKFAST_COEFFICIENT] = breakfast
@@ -49,6 +59,18 @@ class SettingsDataStore(context: Context) {
     suspend fun saveCarbsPerBu(carbs: Float) {
         dataStore.edit {
             it[PreferencesKeys.CARBS_PER_BU] = carbs
+        }
+    }
+
+    suspend fun saveDailyCarbsGoal(goal: Float) {
+        dataStore.edit {
+            it[PreferencesKeys.DAILY_CARBS_GOAL] = goal
+        }
+    }
+
+    suspend fun saveInsulinDoseAccuracy(accuracy: Float) {
+        dataStore.edit {
+            it[PreferencesKeys.INSULIN_DOSE_ACCURACY] = accuracy
         }
     }
 }

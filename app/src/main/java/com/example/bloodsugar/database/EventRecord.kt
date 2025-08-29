@@ -9,5 +9,7 @@ data class EventRecord(
     val id: Long = 0,
     val timestamp: Long,
     val type: String, // e.g., "INSULIN" or "CARBS"
-    val value: Float
+    val value: Float,
+    val foodName: String? = null,
+    val foodServing: String? = null
 )

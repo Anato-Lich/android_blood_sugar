@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.MedicalServices
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.WaterDrop
@@ -23,7 +24,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SmallFloatingActionButton
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -44,6 +45,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.bloodsugar.notifications.PersistentNotificationService
 import com.example.bloodsugar.ui.screens.CalculatorScreen
+import com.example.bloodsugar.ui.screens.FoodScreen
 import com.example.bloodsugar.ui.screens.HomeScreen
 import com.example.bloodsugar.ui.screens.NotificationsScreen
 import com.example.bloodsugar.ui.screens.SettingsScreen
@@ -54,6 +56,7 @@ import com.example.bloodsugar.Screen
 
 val items = listOf(
     Screen.Home,
+    Screen.Food,
     Screen.Notifications,
     Screen.Calculator,
 )
@@ -72,7 +75,7 @@ class MainActivity : ComponentActivity() {
         }
         setContent {
             BloodSugarTheme {
-                MainScreen(sharedViewModel)
+                MainScreen()
             }
         }
     }
@@ -80,7 +83,7 @@ class MainActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen(sharedViewModel: SharedViewModel) {
+fun MainScreen() {
     val navController = rememberNavController()
     val homeViewModel: HomeViewModel = viewModel()
 
@@ -127,24 +130,33 @@ fun MainScreen(sharedViewModel: SharedViewModel) {
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     if (isExpanded) {
-                        SmallFloatingActionButton(
+                        ExtendedFloatingActionButton(
+                            onClick = {
+                                homeViewModel.onLogActivityClicked()
+                                isExpanded = false
+                            },
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            icon = { Icon(Icons.Default.FitnessCenter, "Log Activity") },
+                            text = { Text(text = "Activity") }
+                        )
+                        ExtendedFloatingActionButton(
                             onClick = {
                                 homeViewModel.onLogEventClicked()
                                 isExpanded = false
                             },
-                            containerColor = MaterialTheme.colorScheme.secondaryContainer
-                        ) {
-                            Icon(Icons.Default.MedicalServices, "Log Insulin/Carbs")
-                        }
-                        SmallFloatingActionButton(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            icon = { Icon(Icons.Default.MedicalServices, "Log Insulin/Carbs") },
+                            text = { Text(text = "Carbs and Insulin") }
+                        )
+                        ExtendedFloatingActionButton(
                             onClick = {
                                 homeViewModel.onLogSugarClicked()
                                 isExpanded = false
                             },
-                            containerColor = MaterialTheme.colorScheme.secondaryContainer
-                        ) {
-                            Icon(Icons.Default.WaterDrop, "Log Blood Sugar")
-                        }
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            icon = { Icon(Icons.Default.WaterDrop, "Log Blood Sugar") },
+                            text = { Text(text = "Sugar level") }
+                        )
                     }
                     FloatingActionButton(onClick = { isExpanded = !isExpanded }) {
                         Icon(
@@ -161,9 +173,10 @@ fun MainScreen(sharedViewModel: SharedViewModel) {
             startDestination = Screen.Home.route,
             Modifier.padding(innerPadding)
         ) {
-            composable(Screen.Home.route) { HomeScreen(homeViewModel = homeViewModel, sharedViewModel = sharedViewModel) }
+            composable(Screen.Home.route) { HomeScreen(homeViewModel = homeViewModel) }
+            composable(Screen.Food.route) { FoodScreen() }
             composable(Screen.Notifications.route) { NotificationsScreen() }
-            composable(Screen.Calculator.route) { CalculatorScreen(sharedViewModel = sharedViewModel) }
+                                                composable(Screen.Calculator.route) { CalculatorScreen(navController = navController, homeViewModel = homeViewModel) }
             composable("settings") { SettingsScreen(navController) }
         }
     }
