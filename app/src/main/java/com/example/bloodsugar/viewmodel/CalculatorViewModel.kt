@@ -40,6 +40,7 @@ data class CalculatorUiState(
     val plannedCarbs: String = "",
     val remainingCarbs: Float? = null,
     val totalCarbsForDose: Float? = null,
+    val remainingCarbsComponents: List<MealComponent> = emptyList(),
 
     // Common state
     val foodItems: List<FoodItem> = emptyList(),
@@ -209,6 +210,88 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
         _uiState.update { it.copy(foodServingValue = "", foodCarbs = "") }
     }
 
+    fun addRemainingCarbsComponent(useGrams: Boolean) {
+        val food = _uiState.value.selectedFood ?: return
+        val carbs = _uiState.value.foodCarbs.replace(',', '.').toFloatOrNull() ?: return
+        val servingValue = _uiState.value.foodServingValue
+
+        val component = MealComponent(
+            name = food.name,
+            carbs = carbs,
+            servingValue = servingValue,
+            useGrams = useGrams,
+            foodItemId = food.id
+        )
+
+        _uiState.update { it.copy(
+            remainingCarbsComponents = it.remainingCarbsComponents + component,
+            selectedFood = null,
+            foodServingValue = "",
+            foodCarbs = ""
+        ) }
+    }
+
+    fun addManualRemainingCarbsComponent() {
+        val carbs = _uiState.value.manualCarbsEntry.replace(',', '.').toFloatOrNull() ?: return
+        val component = MealComponent(
+            name = "Manual Entry",
+            carbs = carbs,
+            servingValue = "%.1f".format(carbs),
+            useGrams = true,
+            foodItemId = null
+        )
+        _uiState.update { it.copy(
+            remainingCarbsComponents = it.remainingCarbsComponents + component,
+            manualCarbsEntry = ""
+        ) }
+    }
+
+    fun removeRemainingCarbsComponent(id: String) {
+        _uiState.update { it.copy(remainingCarbsComponents = it.remainingCarbsComponents.filterNot { c -> c.id == id }) }
+    }
+
+    fun updateRemainingCarbsComponent(id: String, newServingValue: String, useGrams: Boolean) {
+        val componentToUpdate = _uiState.value.remainingCarbsComponents.find { it.id == id } ?: return
+        val foodItem = componentToUpdate.foodItemId?.let { foodId ->
+            _uiState.value.foodItems.find { it.id == foodId }
+        }
+
+        val serving = newServingValue.replace(',', '.').toFloatOrNull()
+        if (serving == null) return
+
+        val newCarbs = if (foodItem != null) {
+            if (useGrams) (serving / 100f) * foodItem.carbsPer100g else serving * foodItem.carbsPerServing
+        } else {
+            serving
+        }
+
+        val updatedComponents = _uiState.value.remainingCarbsComponents.map {
+            if (it.id == id) {
+                it.copy(
+                    carbs = newCarbs,
+                    servingValue = newServingValue,
+                    useGrams = useGrams
+                )
+            } else {
+                it
+            }
+        }
+        _uiState.update { it.copy(remainingCarbsComponents = updatedComponents) }
+    }
+
+    fun clearRemainingCarbsCalculator() {
+        _uiState.update { it.copy(
+            remainingCarbsComponents = emptyList(),
+            remainingCarbs = null,
+            totalCarbsForDose = null,
+            insulinDoseForRemainingCarbs = "",
+            manualCarbsEntry = "",
+            foodCarbs = "",
+            selectedFood = null,
+            foodServingValue = ""
+        ) }
+    }
+
 
     // --- Other Tabs ---
 
@@ -241,7 +324,7 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
             if (coefficient == 0f) return@launch
             val carbsPerBu = settingsDataStore.carbsPerBu.first()
             val insulinDose = _uiState.value.insulinDoseForRemainingCarbs.replace(',', '.').toFloatOrNull() ?: 0f
-            val plannedCarbs = _uiState.value.plannedCarbs.replace(',', '.').toFloatOrNull() ?: 0f
+            val plannedCarbs = _uiState.value.remainingCarbsComponents.sumOf { it.carbs.toDouble() }.toFloat()
             val totalBreadUnits = insulinDose / coefficient
             val totalCarbs = totalBreadUnits * carbsPerBu
             _uiState.update { it.copy(

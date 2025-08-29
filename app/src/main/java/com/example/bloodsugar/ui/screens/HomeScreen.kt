@@ -6,6 +6,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -86,6 +87,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
 import com.example.bloodsugar.database.ActivityRecord
 import com.example.bloodsugar.database.BloodSugarRecord
 import com.example.bloodsugar.database.EventRecord
@@ -102,32 +104,19 @@ import java.util.Locale
 import java.util.concurrent.TimeUnit
 import kotlin.math.max
 
-private fun getValueColor(value: Float): Color {
-    return when {
-        value < 4f -> Color.Blue
-        value <= 10f -> Color(0xFF006400) // Dark Green
-        else -> Color.Red
-    }
-}
 
-@Composable
-private fun getActivityIcon(activityType: String): ImageVector {
-    return when (activityType) {
-        "Walking" -> Icons.AutoMirrored.Filled.DirectionsWalk
-        "Running" -> Icons.AutoMirrored.Filled.DirectionsRun
-        "Cycling" -> Icons.AutoMirrored.Filled.DirectionsBike
-        "Gym" -> Icons.Default.FitnessCenter
-        else -> Icons.Default.FitnessCenter
-    }
-}
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @Composable
 fun HomeScreen(
-    homeViewModel: HomeViewModel
+    homeViewModel: HomeViewModel,
+    navController: NavController
 ) {
     val uiState by homeViewModel.uiState.collectAsState()
     var showCustomDateRangePicker by remember { mutableStateOf(false) }
+
+    var chartZoomLevel by remember { mutableStateOf(1f) }
+    var chartPanOffset by remember { mutableStateOf(0f) }
 
     if (uiState.shownDialog != null) {
         LogInputDialog(
@@ -152,9 +141,7 @@ fun HomeScreen(
             onCarbsChange = { homeViewModel.setCarbsValue(it) },
             onActivityTypeChange = { homeViewModel.setActivityType(it) },
             onActivityDurationChange = { homeViewModel.setActivityDuration(it) },
-            onActivityIntensityChange = { homeViewModel.setActivityIntensity(it) },
-            onFoodSelected = { homeViewModel.onFoodSelected(it) },
-            onFoodServingChange = { useGrams, value -> homeViewModel.calculateCarbsForLog(value, useGrams) }
+            onActivityIntensityChange = { homeViewModel.setActivityIntensity(it) }
         )
     }
 
@@ -168,84 +155,36 @@ fun HomeScreen(
         )
     }
 
-    LazyColumn(
+    Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        item {
-            uiState.chartData?.let {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Metric("Avg", it.avg, modifier = Modifier.weight(1f))
-                    Metric("Min", it.min, modifier = Modifier.weight(1f))
-                    Metric("Max", it.max, modifier = Modifier.weight(1f))
-                }
-            }
-        }
-
-        item {
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(top = 16.dp, start = 16.dp, end = 16.dp)) {
-                    BloodSugarChart(
-                        chartData = uiState.chartData,
-                        selectedRecord = uiState.selectedRecord,
-                        onRecordClick = homeViewModel::onChartRecordSelected,
-                        onDismissTooltip = homeViewModel::onChartSelectionDismissed,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(250.dp)
+        // Key Metrics Card
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier.padding(20.dp).fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceAround
+            ) {
+                if (uiState.chartData != null) {
+                    Metric("Min", uiState.chartData!!.min)
+                    Metric("Avg", uiState.chartData!!.avg)
+                    Metric("Max", uiState.chartData!!.max)
+                } else {
+                    Text(
+                        "No data to display metrics.",
+                        modifier = Modifier.padding(16.dp),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-
-                    var showFilterMenu by remember { mutableStateOf(false) }
-                    Box(modifier = Modifier.align(Alignment.CenterHorizontally).padding(vertical = 8.dp)) {
-                        Button(onClick = { showFilterMenu = true }) {
-                            val filterText = when (uiState.selectedFilter) {
-                                FilterType.TODAY -> "Today"
-                                FilterType.THREE_DAYS -> "3 Days"
-                                FilterType.SEVEN_DAYS -> "7 Days"
-                                FilterType.CUSTOM -> "Custom"
-                            }
-                            Text(text = "Filter: $filterText")
-                        }
-                        DropdownMenu(
-                            expanded = showFilterMenu,
-                            onDismissRequest = { showFilterMenu = false }
-                        ) {
-                            val filterTypes = listOf(FilterType.TODAY, FilterType.THREE_DAYS, FilterType.SEVEN_DAYS, FilterType.CUSTOM)
-                            filterTypes.forEach { filter ->
-                                DropdownMenuItem(
-                                    text = {
-                                        Text(
-                                            text = when (filter) {
-                                                FilterType.TODAY -> "Today"
-                                                FilterType.THREE_DAYS -> "3 Days"
-                                                FilterType.SEVEN_DAYS -> "7 Days"
-                                                FilterType.CUSTOM -> "Custom"
-                                            }
-                                        )
-                                    },
-                                    onClick = {
-                                        showFilterMenu = false
-                                        if (filter == FilterType.CUSTOM) {
-                                            showCustomDateRangePicker = true
-                                        } else {
-                                            homeViewModel.setFilter(filter)
-                                        }
-                                    }
-                                )
-                            }
-                        }
-                    }
                 }
             }
         }
 
-        item {
+        Card(modifier = Modifier.fillMaxWidth()) {
             Row(
                 modifier = Modifier.fillMaxWidth().height(150.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -256,7 +195,7 @@ fun HomeScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    val pagerState = rememberPagerState(pageCount = { 2 })
+                    val pagerState = rememberPagerState(pageCount = { 3 })
                     HorizontalPager(
                         state = pagerState,
                         modifier = Modifier.fillMaxWidth().weight(1f)
@@ -269,6 +208,7 @@ fun HomeScreen(
                                 goal = uiState.dailyCarbsGoal,
                                 modifier = cardModifier
                             )
+                            2 -> TirBar(uiState = uiState, modifier = cardModifier)
                         }
                     }
                     Spacer(modifier = Modifier.height(8.dp))
@@ -292,28 +232,205 @@ fun HomeScreen(
             }
         }
 
-        item {
-            Text("History", style = MaterialTheme.typography.headlineSmall)
+        // Chart Card
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(top = 16.dp, start = 16.dp, end = 16.dp)) {
+                BloodSugarChart(
+                    chartData = uiState.chartData,
+                    selectedRecord = uiState.selectedRecord,
+                    onRecordClick = homeViewModel::onChartRecordSelected,
+                    onDismissTooltip = homeViewModel::onChartSelectionDismissed,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(250.dp),
+                    zoomLevel = chartZoomLevel,
+                    panOffset = chartPanOffset,
+                    onZoom = { newZoom -> chartZoomLevel = newZoom },
+                    onPan = { newPan -> chartPanOffset = newPan }
+                )
+
+                var showFilterMenu by remember { mutableStateOf(false) }
+                Box(modifier = Modifier.align(Alignment.CenterHorizontally).padding(vertical = 8.dp)) {
+                    Button(onClick = { showFilterMenu = true }) {
+                        val filterText = when (uiState.selectedFilter) {
+                            FilterType.TODAY -> "Today"
+                            FilterType.THREE_DAYS -> "3 Days"
+                            FilterType.SEVEN_DAYS -> "7 Days"
+                            FilterType.CUSTOM -> "Custom"
+                        }
+                        Text(text = "Filter: $filterText")
+                    }
+                    DropdownMenu(
+                        expanded = showFilterMenu,
+                        onDismissRequest = { showFilterMenu = false }
+                    ) {
+                        val filterTypes = listOf(FilterType.TODAY, FilterType.THREE_DAYS, FilterType.SEVEN_DAYS, FilterType.CUSTOM)
+                        filterTypes.forEach { filter ->
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text = when (filter) {
+                                            FilterType.TODAY -> "Today"
+                                            FilterType.THREE_DAYS -> "3 Days"
+                                            FilterType.SEVEN_DAYS -> "7 Days"
+                                            FilterType.CUSTOM -> "Custom"
+                                        }
+                                    )
+                                },
+                                onClick = {
+                                    showFilterMenu = false
+                                    if (filter == FilterType.CUSTOM) {
+                                        showCustomDateRangePicker = true
+                                    } else {
+                                        homeViewModel.setFilter(filter)
+                                    }
+                                }
+                            )
+                        }
+                    }
+                }
+            }
         }
 
-        items(uiState.historyItems) { item ->
-            when (item) {
-                is BloodSugarRecord -> {
-                    RecordItem(
-                        record = item,
-                        onDelete = { homeViewModel.deleteRecord(item) }
+        // Recent History Card
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text("Recent History", style = MaterialTheme.typography.titleMedium, modifier = Modifier.align(Alignment.CenterHorizontally))
+                Spacer(modifier = Modifier.height(8.dp))
+                if (uiState.recentHistoryItems.isEmpty()) {
+                    Text("No recent history to show.", modifier = Modifier.align(Alignment.CenterHorizontally).padding(16.dp))
+                } else {
+                    uiState.recentHistoryItems.forEach { item ->
+                        when (item) {
+                            is BloodSugarRecord -> RecordItem(record = item, onDelete = { homeViewModel.deleteRecord(item) })
+                            is EventRecord -> EventHistoryItem(event = item, onDelete = { homeViewModel.deleteEvent(item) })
+                            is ActivityRecord -> ActivityHistoryItem(activity = item, onDelete = { homeViewModel.deleteActivity(item) })
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = { navController.navigate("history") },
+                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                    ) {
+                        Text("View All History")
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun TirBar(uiState: HomeUiState, modifier: Modifier = Modifier) {
+    val total = uiState.timeBelowRange + uiState.timeInRange + uiState.timeAboveRange
+    if (total == 0f) {
+        Row(
+            modifier = Modifier
+                .padding(vertical = 2.dp, horizontal = 8.dp)
+                .height(16.dp),
+            verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "No data in selected period",
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Center,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.error.copy(alpha = 0.7f)
+            )
+        }
+
+        return
+    }
+
+    Card(
+        modifier = modifier,
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        Column {
+            Text(
+                "Time In Range",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            )
+            Row(
+                modifier = Modifier
+                    .padding(vertical = 2.dp, horizontal = 8.dp)
+                    .height(16.dp)
+                    .clip(MaterialTheme.shapes.medium)) {
+                if (uiState.timeBelowRange > 0) {
+                    Box(
+                        modifier = Modifier.fillMaxHeight().weight(uiState.timeBelowRange)
+                            .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f))
                     )
                 }
-                is EventRecord -> {
-                    EventHistoryItem(
-                        event = item,
-                        onDelete = { homeViewModel.deleteEvent(item) }
+                if (uiState.timeInRange > 0) {
+                    Box(
+                        modifier = Modifier.fillMaxHeight().weight(uiState.timeInRange)
+                            .background(MaterialTheme.colorScheme.primary)
                     )
                 }
-                is ActivityRecord -> {
-                    ActivityHistoryItem(
-                        activity = item,
-                        onDelete = { homeViewModel.deleteActivity(item) }
+                if (uiState.timeAboveRange > 0) {
+                    Box(
+                        modifier = Modifier.fillMaxHeight().weight(uiState.timeAboveRange)
+                            .background(MaterialTheme.colorScheme.error.copy(alpha = 0.5f))
+                    )
+                }
+            }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp)){
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(4.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        "Low",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.secondary
+                    )
+                    Text(
+                        "%.1f%%".format(uiState.timeBelowRange),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.secondary
+                    )
+                }
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        "Normal",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        "%.1f%%".format(uiState.timeInRange),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        "High",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    Text(
+                        "%.1f%%".format(uiState.timeAboveRange),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error
                     )
                 }
             }
@@ -331,8 +448,7 @@ fun Metric(label: String, value: Float, modifier: Modifier = Modifier) {
     ) {
         Column(
             modifier = Modifier
-                .padding(vertical = 12.dp, horizontal = 8.dp)
-                .fillMaxWidth(),
+                .padding(vertical = 12.dp, horizontal = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
@@ -347,7 +463,7 @@ fun Metric(label: String, value: Float, modifier: Modifier = Modifier) {
 fun Hba1cMetric(value: String, modifier: Modifier = Modifier) {
     Card(
         modifier = modifier.fillMaxHeight(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
         Row(
@@ -384,7 +500,7 @@ fun CarbsProgressMetric(consumed: Float, goal: Float, modifier: Modifier = Modif
 
     Card(
         modifier = modifier.fillMaxHeight(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
         Row(
@@ -424,7 +540,11 @@ fun BloodSugarChart(
     selectedRecord: BloodSugarRecord?,
     onRecordClick: (BloodSugarRecord) -> Unit,
     onDismissTooltip: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    zoomLevel: Float = 1f,
+    panOffset: Float = 0f,
+    onZoom: (Float) -> Unit,
+    onPan: (Float) -> Unit
 ) {
     val records = chartData?.records ?: emptyList()
     val events = chartData?.events?.sortedBy { it.timestamp } ?: emptyList()
@@ -465,32 +585,49 @@ fun BloodSugarChart(
         }
     }
 
-    Canvas(modifier = modifier.pointerInput(records) {
-        detectTapGestures(
-            onTap = { tapOffset ->
-                var tappedRecordId: Long? = null
-                val tapRadius = 16.dp.toPx()
+    val padding = with(LocalDensity.current) { 16.dp.toPx() }
 
-                recordPoints.forEach { (id, pointOffset) ->
-                    if ((tapOffset - pointOffset).getDistance() < tapRadius) {
-                        tappedRecordId = id
+    Canvas(modifier = modifier
+        .pointerInput(records) {
+            detectTapGestures(
+                onTap = { tapOffset ->
+                    var tappedRecordId: Long? = null
+                    val tapRadius = with(density) { 16.dp.toPx() }
+
+                    recordPoints.forEach { (id, pointOffset) ->
+                        if ((tapOffset - pointOffset).getDistance() < tapRadius) {
+                            tappedRecordId = id
+                        }
+                    }
+
+                    val tappedRecord = tappedRecordId?.let { id ->
+                        records.find { it.id == id }
+                    }
+
+                    if (tappedRecord != null) {
+                        onRecordClick(tappedRecord)
+                    } else {
+                        if (selectedRecord != null) {
+                            onDismissTooltip()
+                        }
                     }
                 }
+            )
+        }
+        .pointerInput(chartData?.rangeStart, chartData?.rangeEnd, padding) {
+            detectTransformGestures { centroid, pan, zoom, rotation ->
+                // Update zoom level
+                val newZoom = (zoomLevel * zoom).coerceIn(0.5f, 5f) // Clamp zoom level between 0.5x and 5x
+                onZoom(newZoom)
 
-                val tappedRecord = tappedRecordId?.let { id ->
-                    records.find { it.id == id }
-                }
-
-                if (tappedRecord != null) {
-                    onRecordClick(tappedRecord)
-                } else {
-                    if (selectedRecord != null) {
-                        onDismissTooltip()
-                    }
-                }
+                // Update pan offset
+                val chartWidthPx = size.width - (2f * padding) // Explicitly use 2f
+                val timePerPixel = ( (chartData?.rangeEnd ?: 0L) - (chartData?.rangeStart ?: 0L) ).toFloat() / chartWidthPx
+                val timeShift = pan.x * timePerPixel
+                onPan(panOffset - timeShift)
             }
-        )
-    }) {
+        }
+    ) {
         if (chartData == null || (records.isEmpty() && events.isEmpty() && activities.isEmpty())) {
             drawIntoCanvas {
                 it.nativeCanvas.drawText(
@@ -503,12 +640,31 @@ fun BloodSugarChart(
             return@Canvas
         }
 
-        val padding = 20.dp.toPx()
         val canvasWidth = size.width
         val canvasHeight = size.height
 
-        val minTime = chartData.rangeStart
-        val maxTime = chartData.rangeEnd
+        var initialMinTime = chartData.rangeStart
+        var initialMaxTime = chartData.rangeEnd
+        val initialTimeRange = (initialMaxTime - initialMinTime).toFloat()
+
+        val visibleTimeRange = (initialTimeRange / zoomLevel).coerceIn(0f, initialTimeRange) // Ensure visibleTimeRange is not negative or larger than initial
+        val currentCenterTime = (initialMinTime + initialMaxTime) / 2f + panOffset
+
+        var calculatedMinTime = (currentCenterTime - visibleTimeRange / 2f).toLong()
+        var calculatedMaxTime = (currentCenterTime + visibleTimeRange / 2f).toLong()
+
+        // Ensure the calculated range stays within the initial data range
+        if (calculatedMinTime < initialMinTime) {
+            calculatedMinTime = initialMinTime
+            calculatedMaxTime = (initialMinTime + visibleTimeRange).toLong()
+        }
+        if (calculatedMaxTime > initialMaxTime) {
+            calculatedMaxTime = initialMaxTime
+            calculatedMinTime = (initialMaxTime - visibleTimeRange).toLong()
+        }
+
+        val minTime = calculatedMinTime
+        val maxTime = calculatedMaxTime
         val timeRange = (maxTime - minTime).toFloat()
 
         val minValue = 0f
@@ -554,7 +710,7 @@ fun BloodSugarChart(
 
         // Function to transform data points to canvas coordinates
         fun toOffset(timestamp: Long, value: Float): Offset {
-            val x = padding + ((timestamp - minTime) / timeRange) * (canvasWidth - 2 * padding)
+            val x = padding + ((timestamp - minTime).toFloat() / timeRange) * (canvasWidth - 2 * padding)
             val y = padding + (canvasHeight - 2 * padding) - ((value.coerceIn(minValue, maxValue) - minValue) / valueRange) * (canvasHeight - 2 * padding)
             return Offset(x, y)
         }
@@ -570,7 +726,7 @@ fun BloodSugarChart(
                 val item = sortedItems[i]
                 val lastItemInGroup = currentGroup.last()
                 val timeDiff = getTimestamp(item) - getTimestamp(lastItemInGroup)
-                val xDiff = (timeDiff / timeRange) * (canvasWidth - 2 * padding)
+                val xDiff = (timeDiff.toFloat() / timeRange) * (canvasWidth - 2 * padding)
                 if (xDiff < 30.dp.toPx()) {
                     currentGroup.add(item)
                 } else {
@@ -843,7 +999,7 @@ fun BloodSugarChart(
 
                 val activityIndicatorTextPaint = android.graphics.Paint().apply {
                     color = Color.White.toArgb()
-                    textSize = 10.sp.toPx()
+                    textSize = 10.sp.value * density.density
                     textAlign = android.graphics.Paint.Align.LEFT
                 }
                 val boxPaint = android.graphics.Paint().apply {
@@ -883,224 +1039,11 @@ fun BloodSugarChart(
 }
 
 
-@Composable
-fun RecordItem(
-    record: BloodSugarRecord,
-    onDelete: () -> Unit
-) {
-    val valueColor = getValueColor(record.value)
 
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Spacer(
-                modifier = Modifier
-                    .width(6.dp)
-                    .height(80.dp) // Adjust height to be dynamic if possible
-                    .background(valueColor)
-            )
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(
-                        Icons.Default.WaterDrop,
-                        contentDescription = "Blood Sugar Record",
-                        tint = valueColor,
-                        modifier = Modifier.size(32.dp)
-                    )
-                    Spacer(modifier = Modifier.width(16.dp))
-                    Column {
-                        Text(
-                            text = "%.1f mmol/L".format(record.value),
-                            style = MaterialTheme.typography.titleLarge,
-                            color = valueColor
-                        )
-                        if (record.comment.isNotBlank()) {
-                            Text(
-                                text = record.comment,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        Text(
-                            text = SimpleDateFormat("MMM d, yyyy HH:mm", Locale.getDefault()).format(Date(record.timestamp)),
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
-                }
-                IconButton(onClick = onDelete) {
-                    Icon(Icons.Default.Delete, contentDescription = "Delete Record")
-                }
-            }
-        }
-    }
-}
 
-@Composable
-fun EventHistoryItem(
-    event: EventRecord,
-    onDelete: () -> Unit
-) {
-    val (color, label, icon) = when (event.type) {
-        "INSULIN" -> Triple(Color(0xFF5C6BC0), "Insulin", Icons.Default.MedicalServices) // Indigo
-        "CARBS" -> Triple(Color(0xFFFFA726), "Carbs", Icons.Default.Restaurant) // Orange
-        else -> Triple(Color.Gray, "Unknown Event", Icons.Default.Info)
-    }
-    val valueText = when(event.type) {
-        "INSULIN" -> "%.1fu".format(event.value)
-        "CARBS" -> "%.1fg".format(event.value)
-        else -> ""
-    }
 
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Spacer(
-                modifier = Modifier
-                    .width(6.dp)
-                    .fillMaxHeight()
-                    .background(color)
-            )
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(
-                        icon,
-                        contentDescription = label,
-                        tint = color,
-                        modifier = Modifier.size(32.dp)
-                    )
-                    Spacer(modifier = Modifier.width(16.dp))
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(
-                            text = label,
-                            style = MaterialTheme.typography.titleLarge,
-                            color = color
-                        )
-                        Text(
-                            text = valueText,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        if (event.foodServing != null) {
-                            Text(
-                                text = event.foodServing,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        } else if (event.foodName != null) {
-                            Text(
-                                text = "(${event.foodName})",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        Text(
-                            text = SimpleDateFormat("MMM d, yyyy HH:mm", Locale.getDefault()).format(Date(event.timestamp)),
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
-                }
-                IconButton(onClick = onDelete) {
-                    Icon(Icons.Default.Delete, contentDescription = "Delete Event")
-                }
-            }
-        }
-    }
-}
 
-@Composable
-fun ActivityHistoryItem(activity: ActivityRecord, onDelete: () -> Unit) {
-    val color = MaterialTheme.colorScheme.tertiary
-    val icon = getActivityIcon(activity.type)
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Spacer(
-                modifier = Modifier
-                    .width(6.dp)
-                    .height(80.dp)
-                    .background(color)
-            )
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(
-                        icon,
-                        contentDescription = "Activity",
-                        tint = color,
-                        modifier = Modifier.size(32.dp)
-                    )
-                    Spacer(modifier = Modifier.width(16.dp))
-                    Column {
-                        Text(
-                            text = activity.type,
-                            style = MaterialTheme.typography.titleLarge,
-                            color = color
-                        )
-                        Text(
-                            text = "${activity.durationMinutes} min (${activity.intensity})",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            text = SimpleDateFormat("MMM d, yyyy HH:mm", Locale.getDefault()).format(Date(activity.timestamp)),
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
-                }
-                IconButton(onClick = onDelete) {
-                    Icon(Icons.Default.Delete, contentDescription = "Delete Activity")
-                }
-            }
-        }
-    }
-}
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1150,9 +1093,7 @@ fun LogInputDialog(
     onCarbsChange: (String) -> Unit,
     onActivityTypeChange: (String) -> Unit,
     onActivityDurationChange: (String) -> Unit,
-    onActivityIntensityChange: (String) -> Unit,
-    onFoodSelected: (FoodItem?) -> Unit,
-    onFoodServingChange: (Boolean, String) -> Unit
+    onActivityIntensityChange: (String) -> Unit
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -1178,73 +1119,11 @@ fun LogInputDialog(
                         )
                     }
                     DialogType.EVENT -> {
-                        val isMultiItemMeal = uiState.foodServingValue.contains("\n")
-
-                        if (isMultiItemMeal) {
-                            Text("Meal Details", style = MaterialTheme.typography.titleMedium)
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(100.dp)
-                                    .background(
-                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                                        shape = MaterialTheme.shapes.small
-                                    )
-                                    .padding(8.dp)
-                                    .verticalScroll(rememberScrollState())
-                            ) { 
-                                Text(uiState.foodServingValue, style = MaterialTheme.typography.bodySmall)
-                            }
-
-                        } else {
-                            var foodExpanded by remember { mutableStateOf(false) }
-                            ExposedDropdownMenuBox(expanded = foodExpanded, onExpandedChange = {foodExpanded = !foodExpanded}) {
-                                OutlinedTextField(
-                                    value = uiState.selectedFood?.name ?: "",
-                                    onValueChange = {},
-                                    label = { Text("Select Food (Optional)") },
-                                    readOnly = true,
-                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = foodExpanded) },
-                                    modifier = Modifier.menuAnchor()
-                                )
-                                ExposedDropdownMenu(expanded = foodExpanded, onDismissRequest = { foodExpanded = false }) {
-                                    DropdownMenuItem(text = { Text("None (Manual Entry)") }, onClick = {
-                                        onFoodSelected(null)
-                                        foodExpanded = false
-                                    })
-                                    uiState.foodItems.forEach { food ->
-                                        DropdownMenuItem(text = { Text(food.name) }, onClick = {
-                                            onFoodSelected(food)
-                                            foodExpanded = false
-                                        })
-                                    }
-                                }
-                            }
-                            if (uiState.selectedFood != null) {
-                                var useGrams by remember { mutableStateOf(uiState.useGramsInDialog) }
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    if (useGrams) {
-                                        Button(onClick = { /* Selected */ }) { Text("Grams") }
-                                        OutlinedButton(onClick = { useGrams = false }) { Text("Servings") }
-                                    } else {
-                                        OutlinedButton(onClick = { useGrams = true }) { Text("Grams") }
-                                        Button(onClick = { /* Selected */ }) { Text("Servings") }
-                                    }
-                                }
-                                OutlinedTextField(
-                                    value = uiState.foodServingValue,
-                                    onValueChange = { onFoodServingChange(useGrams, it) },
-                                    label = { Text(if (useGrams) "Weight (g)" else "Number of Servings") },
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
-                                )
-                            }
-                        }
                         OutlinedTextField(
                             value = uiState.carbsValue,
                             onValueChange = onCarbsChange,
                             label = { Text("Carbohydrates (grams)") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                            readOnly = uiState.selectedFood != null || isMultiItemMeal
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
                         )
                         OutlinedTextField(
                             value = uiState.insulinValue,

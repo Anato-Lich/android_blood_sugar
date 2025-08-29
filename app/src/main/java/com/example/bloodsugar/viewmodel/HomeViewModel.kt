@@ -55,6 +55,7 @@ data class HomeUiState(
     val events: List<EventRecord> = emptyList(),
     val activities: List<ActivityRecord> = emptyList(),
     val historyItems: List<Any> = emptyList(),
+    val recentHistoryItems: List<Any> = emptyList(),
     val chartData: ChartData? = null,
     val selectedFilter: FilterType = FilterType.TODAY,
     val customStartDate: Long? = null,
@@ -68,9 +69,9 @@ data class HomeUiState(
     val todaysCarbs: Float = 0f,
     val dailyCarbsGoal: Float = 200f,
     val foodItems: List<FoodItem> = emptyList(),
-    val selectedFood: FoodItem? = null,
-    val foodServingValue: String = "", // Will now hold the formatted details of a pending meal
-    val useGramsInDialog: Boolean = true
+    val timeInRange: Float = 0f,
+    val timeAboveRange: Float = 0f,
+    val timeBelowRange: Float = 0f
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -192,7 +193,45 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
 
-            _uiState.update { it.copy(records = records, events = events, activities = activities, chartData = chartData, historyItems = combinedList) }
+            val recentHistory = combinedList.take(5)
+            calculateTir(records)
+
+            _uiState.update { it.copy(records = records, events = events, activities = activities, chartData = chartData, historyItems = combinedList, recentHistoryItems = recentHistory) }
+        }
+    }
+
+    private fun calculateTir(records: List<BloodSugarRecord>) {
+        if (records.size < 2) {
+            _uiState.update { it.copy(timeInRange = 0f, timeAboveRange = 0f, timeBelowRange = 0f) }
+            return
+        }
+
+        var durationLow = 0L
+        var durationInRange = 0L
+        var durationHigh = 0L
+
+        for (i in 0 until records.size - 1) {
+            val currentRecord = records[i]
+            val nextRecord = records[i+1]
+            val duration = currentRecord.timestamp - nextRecord.timestamp
+
+            val avgValue = (currentRecord.value + nextRecord.value) / 2f
+
+            when {
+                avgValue < 4.0f -> durationLow += duration
+                avgValue <= 10.0f -> durationInRange += duration
+                else -> durationHigh += duration
+            }
+        }
+
+        val totalDuration = records.first().timestamp - records.last().timestamp
+        if (totalDuration > 0) {
+            val totalDurationFloat = totalDuration.toFloat()
+            _uiState.update { it.copy(
+                timeInRange = (durationInRange / totalDurationFloat) * 100,
+                timeAboveRange = (durationHigh / totalDurationFloat) * 100,
+                timeBelowRange = (durationLow / totalDurationFloat) * 100
+            ) }
         }
     }
 
@@ -249,34 +288,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun setCarbsValue(value: String) {
-        _uiState.update { it.copy(carbsValue = value, selectedFood = null, foodServingValue = "") }
+        _uiState.update { it.copy(carbsValue = value) }
     }
 
-    fun onFoodSelected(foodItem: FoodItem?) {
-        val servingValue = if (foodItem != null) "1" else ""
-        _uiState.update { it.copy(
-            selectedFood = foodItem,
-            foodServingValue = servingValue,
-            carbsValue = foodItem?.carbsPerServing?.toString() ?: "",
-            useGramsInDialog = false
-        ) }
-    }
-
-    fun calculateCarbsForLog(servingValueStr: String, useGrams: Boolean) {
-        _uiState.update { it.copy(foodServingValue = servingValueStr, useGramsInDialog = useGrams) }
-        val servingValue = servingValueStr.replace(',', '.').toFloatOrNull()
-        val food = _uiState.value.selectedFood
-        if (servingValue != null && food != null) {
-            val calculatedCarbs = if (useGrams) {
-                (servingValue / 100f) * food.carbsPer100g
-            } else { // use number of servings
-                servingValue * food.carbsPerServing
-            }
-            _uiState.update { it.copy(carbsValue = "%.1f".format(calculatedCarbs)) }
-        } else {
-            _uiState.update { it.copy(carbsValue = "") }
-        }
-    }
+    
 
     fun saveInsulinCarbEvent() {
         viewModelScope.launch {
@@ -288,19 +303,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 eventDao.insert(EventRecord(timestamp = timestamp, type = "INSULIN", value = insulin))
             }
             if (carbs != null) {
-                val details = _uiState.value.foodServingValue // This now holds the formatted details of a pending meal
-                val foodName = if (details.contains("\n")) "Multiple Items" else _uiState.value.selectedFood?.name
-
-                eventDao.insert(EventRecord(
-                    timestamp = timestamp,
-                    type = "CARBS",
-                    value = carbs,
-                    foodName = foodName,
-                    foodServing = details
-                ))
+                eventDao.insert(EventRecord(timestamp = timestamp, type = "CARBS", value = carbs))
                 schedulePostMealNotification(carbs)
             }
-            _uiState.update { it.copy(insulinValue = "", carbsValue = "", selectedFood = null, foodServingValue = "") }
+            _uiState.update { it.copy(insulinValue = "", carbsValue = "") }
         }
     }
     
@@ -350,15 +356,15 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun onLogSugarClicked() {
-        _uiState.update { it.copy(shownDialog = DialogType.SUGAR, selectedFood = null) }
+        _uiState.update { it.copy(shownDialog = DialogType.SUGAR) }
     }
 
     fun onLogEventClicked() {
-        _uiState.update { it.copy(shownDialog = DialogType.EVENT, selectedFood = null) }
+        _uiState.update { it.copy(shownDialog = DialogType.EVENT) }
     }
 
     fun onDialogDismiss() {
-        _uiState.update { it.copy(shownDialog = null, selectedFood = null) }
+        _uiState.update { it.copy(shownDialog = null) }
     }
 
     fun onChartRecordSelected(record: BloodSugarRecord) {

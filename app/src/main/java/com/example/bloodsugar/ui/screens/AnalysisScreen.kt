@@ -11,9 +11,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.bloodsugar.viewmodel.AnalysisViewModel
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.background
 
 @Composable
 fun AnalysisScreen(analysisViewModel: AnalysisViewModel = viewModel()) {
+    println("Composing AnalysisScreen")
     val uiState by analysisViewModel.uiState.collectAsState()
 
     Column(
@@ -45,28 +48,73 @@ fun AnalysisScreen(analysisViewModel: AnalysisViewModel = viewModel()) {
 fun TirCard(uiState: com.example.bloodsugar.viewmodel.AnalysisUiState) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            TirRow("Very High", uiState.veryHigh, Color.Red.copy(alpha = 0.7f))
-            TirRow("High", uiState.high, Color.Red.copy(alpha = 0.4f))
-            TirRow("In Range", uiState.timeInRange, Color(0xFF006400))
-            TirRow("Low", uiState.low, Color.Blue.copy(alpha = 0.4f))
-            TirRow("Very Low", uiState.veryLow, Color.Blue.copy(alpha = 0.7f))
+            Text("Distribution", style = MaterialTheme.typography.titleMedium, modifier = Modifier.align(Alignment.CenterHorizontally))
+            Spacer(modifier = Modifier.height(4.dp))
+
+            val totalPercentage = uiState.veryHigh + uiState.high + uiState.timeInRange + uiState.low + uiState.veryLow
+
+            if (totalPercentage > 0) {
+                Row(modifier = Modifier
+                    .fillMaxWidth()
+                    .height(32.dp)
+                    .clip(MaterialTheme.shapes.medium)
+                ) {
+                    if (uiState.veryLow > 0) {
+                        Box(modifier = Modifier
+                            .fillMaxHeight()
+                            .weight(uiState.veryLow)
+                            .background(Color.Blue.copy(alpha = 0.7f))
+                        )
+                    }
+                    if (uiState.low > 0) {
+                        Box(modifier = Modifier
+                            .fillMaxHeight()
+                            .weight(uiState.low)
+                            .background(Color.Blue.copy(alpha = 0.4f))
+                        )
+                    }
+                    if (uiState.timeInRange > 0) {
+                        Box(modifier = Modifier
+                            .fillMaxHeight()
+                            .weight(uiState.timeInRange)
+                            .background(Color(0xFF006400))
+                        )
+                    }
+                    if (uiState.high > 0) {
+                        Box(modifier = Modifier
+                            .fillMaxHeight()
+                            .weight(uiState.high)
+                            .background(Color.Red.copy(alpha = 0.4f))
+                        )
+                    }
+                    if (uiState.veryHigh > 0) {
+                        Box(modifier = Modifier
+                            .fillMaxHeight()
+                            .weight(uiState.veryHigh)
+                            .background(Color.Red.copy(alpha = 0.7f))
+                        )
+                    }
+                }
+            } else {
+                Text("No data to display Time in Range distribution.", modifier = Modifier.align(Alignment.CenterHorizontally))
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Display percentages below the bar
+            TirPercentageRow("Very High", uiState.veryHigh, MaterialTheme.colorScheme.error.copy(alpha = 0.7f))
+            TirPercentageRow("High", uiState.high, MaterialTheme.colorScheme.error.copy(alpha = 0.4f))
+            TirPercentageRow("In Range", uiState.timeInRange, MaterialTheme.colorScheme.primary)
+            TirPercentageRow("Low", uiState.low, MaterialTheme.colorScheme.secondary.copy(alpha = 0.4f))
+            TirPercentageRow("Very Low", uiState.veryLow, MaterialTheme.colorScheme.secondary.copy(alpha = 0.7f))
         }
     }
 }
 
 @Composable
-fun TirRow(label: String, percentage: Float, color: Color) {
-    Column {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(label, style = MaterialTheme.typography.bodyLarge)
-            Text("%.1f%%".format(percentage), style = MaterialTheme.typography.bodyLarge)
-        }
-        Spacer(modifier = Modifier.height(4.dp))
-        LinearProgressIndicator(
-            progress = { percentage / 100f },
-            modifier = Modifier.fillMaxWidth().height(8.dp),
-            color = color,
-            trackColor = color.copy(alpha = 0.2f)
-        )
+fun TirPercentageRow(label: String, percentage: Float, color: Color) {
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(label, style = MaterialTheme.typography.bodyLarge, color = color)
+        Text("%.1f%%".format(percentage), style = MaterialTheme.typography.bodyLarge, color = color)
     }
 }

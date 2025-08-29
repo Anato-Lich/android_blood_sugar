@@ -178,9 +178,9 @@ class PersistentNotificationService : Service() {
             return android.graphics.Color.BLACK
         }
         return when {
-            value < 4f -> android.graphics.Color.BLUE
-            value <= 10f -> android.graphics.Color.parseColor("#006400") // Dark Green
-            else -> android.graphics.Color.RED
+            value < 4f -> 0xFF2196F3.toInt() // SecondaryBlue
+            value <= 10f -> 0xFF4CAF50.toInt() // PrimaryGreen
+            else -> 0xFFD32F2F.toInt() // ErrorRed
         }
     }
 

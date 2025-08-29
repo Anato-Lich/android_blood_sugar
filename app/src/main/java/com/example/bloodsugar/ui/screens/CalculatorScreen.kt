@@ -394,9 +394,24 @@ fun CarbsFromInsulin(uiState: CalculatorUiState, calculatorViewModel: Calculator
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun RemainingCarbs(uiState: CalculatorUiState, calculatorViewModel: CalculatorViewModel) {
+    var useGrams by remember { mutableStateOf(true) }
+    val totalCarbs = uiState.remainingCarbsComponents.sumOf { it.carbs.toDouble() }.toFloat()
+    var editingComponent by remember { mutableStateOf<MealComponent?>(null) }
+
+    editingComponent?.let {
+        EditComponentDialog(
+            component = it,
+            onDismiss = { editingComponent = null },
+            onConfirm = { id, newServing, newUseGrams ->
+                calculatorViewModel.updateRemainingCarbsComponent(id, newServing, newUseGrams)
+                editingComponent = null
+            }
+        )
+    }
+
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Text("Calculate Remaining Carbs", style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
@@ -408,15 +423,132 @@ fun RemainingCarbs(uiState: CalculatorUiState, calculatorViewModel: CalculatorVi
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 modifier = Modifier.fillMaxWidth(0.9f)
             )
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text("Planned Meal", style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
             Spacer(modifier = Modifier.height(8.dp))
+
+            // Total Carbs Display
+            Text("Total Carbs", style = MaterialTheme.typography.titleMedium)
+            Text("%.1f g".format(totalCarbs), style = MaterialTheme.typography.headlineMedium)
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Added components pager
+            if (uiState.remainingCarbsComponents.isNotEmpty()) {
+                val pagerState = rememberPagerState(pageCount = { uiState.remainingCarbsComponents.size })
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier.fillMaxWidth().height(220.dp),
+                    contentPadding = PaddingValues(horizontal = 16.dp)
+                ) { page ->
+                    val component = uiState.remainingCarbsComponents[page]
+                    val foodItem = component.foodItemId?.let { id ->
+                        uiState.foodItems.find { it.id == id }
+                    }
+                    MealComponentCard(
+                        component = component,
+                        foodItem = foodItem,
+                        dailyCarbsGoal = uiState.dailyCarbsGoal,
+                        onEdit = { editingComponent = it },
+                        onDelete = { calculatorViewModel.removeRemainingCarbsComponent(it) }
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    Modifier.height(20.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    repeat(pagerState.pageCount) { iteration ->
+                        val color = if (pagerState.currentPage == iteration) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
+                        Box(
+                            modifier = Modifier
+                                .padding(2.dp)
+                                .clip(CircleShape)
+                                .background(color)
+                                .size(8.dp)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Add from Food Library
+            var foodExpanded by remember { mutableStateOf(false) }
+            ExposedDropdownMenuBox(expanded = foodExpanded, onExpandedChange = { foodExpanded = !foodExpanded }) {
+                OutlinedTextField(
+                    value = uiState.selectedFood?.name ?: "",
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Select Food") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = foodExpanded) },
+                    modifier = Modifier.menuAnchor().fillMaxWidth(0.9f)
+                )
+                ExposedDropdownMenu(expanded = foodExpanded, onDismissRequest = { foodExpanded = false }) {
+                    uiState.foodItems.forEach { food ->
+                        DropdownMenuItem(
+                            text = { Text(food.name) },
+                            onClick = {
+                                calculatorViewModel.onFoodSelected(food)
+                                foodExpanded = false
+                            }
+                        )
+                    }
+                }
+            }
+
+            if (uiState.selectedFood != null) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (useGrams) {
+                        Button(onClick = { /* Already selected */ }) { Text("Grams") }
+                        OutlinedButton(onClick = { useGrams = false; calculatorViewModel.resetFoodInputs() }) { Text("Servings") }
+                    } else {
+                        OutlinedButton(onClick = { useGrams = true; calculatorViewModel.resetFoodInputs() }) { Text("Grams") }
+                        Button(onClick = { /* Already selected */ }) { Text("Servings") }
+                    }
+                }
+                OutlinedTextField(
+                    value = uiState.foodServingValue,
+                    onValueChange = { calculatorViewModel.calculateCarbsFromFood(it, useGrams) },
+                    label = { Text(if (useGrams) "Weight (g)" else "Number of Servings") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.fillMaxWidth(0.9f)
+                )
+                OutlinedTextField(
+                    value = uiState.foodCarbs,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Calculated Carbs") },
+                    modifier = Modifier.fillMaxWidth(0.9f)
+                )
+                Button(
+                    onClick = { calculatorViewModel.addRemainingCarbsComponent(useGrams) },
+                    enabled = uiState.foodCarbs.isNotBlank()
+                ) {
+                    Text("Add Food")
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Add Manual Carbs
             OutlinedTextField(
-                value = uiState.plannedCarbs,
-                onValueChange = { calculatorViewModel.setPlannedCarbs(it) },
-                label = { Text("Planned Carbs (grams)") },
+                value = uiState.manualCarbsEntry,
+                onValueChange = { calculatorViewModel.setManualCarbsEntry(it) },
+                label = { Text("Additional Carbs (grams)") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 modifier = Modifier.fillMaxWidth(0.9f)
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Button(
+                onClick = { calculatorViewModel.addManualRemainingCarbsComponent() },
+                enabled = uiState.manualCarbsEntry.isNotBlank()
+            ) {
+                Text("Add Carbs")
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Center,

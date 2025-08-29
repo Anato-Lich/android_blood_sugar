@@ -2,31 +2,36 @@ package com.example.bloodsugar.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val Primary = Color(0xFF006C4C)
-val OnPrimary = Color(0xFFFFFFFF)
-val PrimaryContainer = Color(0xFF89F8C6)
-val OnPrimaryContainer = Color(0xFF002115)
+// Primary Colors
+val PrimaryGreen = Color(0xFF4CAF50) // A vibrant green for primary actions and branding
+val OnPrimaryGreen = Color(0xFFFFFFFF) // White text on primary green
+val PrimaryGreenContainer = Color(0xFFC8E6C9) // Lighter green for containers
+val OnPrimaryGreenContainer = Color(0xFF1B5E20) // Darker green text on light green container
 
-val Secondary = Color(0xFF4C6358)
-val OnSecondary = Color(0xFFFFFFFF)
-val SecondaryContainer = Color(0xFFCEE9DA)
-val OnSecondaryContainer = Color(0xFF092017)
+// Secondary Colors
+val SecondaryBlue = Color(0xFF2196F3) // A calming blue for secondary actions
+val OnSecondaryBlue = Color(0xFFFFFFFF) // White text on secondary blue
+val SecondaryBlueContainer = Color(0xFFBBDEFB) // Lighter blue for containers
+val OnSecondaryBlueContainer = Color(0xFF0D47A1) // Darker blue text on light blue container
 
-val Tertiary = Color(0xFF3E6374)
-val OnTertiary = Color(0xFFFFFFFF)
-val TertiaryContainer = Color(0xFFC1E8FC)
-val OnTertiaryContainer = Color(0xFF001F2A)
+// Tertiary Colors (Accent)
+val TertiaryOrange = Color(0xFFFFA726) // A warm orange for accents and warnings
+val OnTertiaryOrange = Color(0xFFFFFFFF) // White text on tertiary orange
+val TertiaryOrangeContainer = Color(0xFFFFCC80) // Lighter orange for containers
+val OnTertiaryOrangeContainer = Color(0xFFE65100) // Darker orange text on light orange container
 
-val Error = Color(0xFFBA1A1A)
-val OnError = Color(0xFFFFFFFF)
-val ErrorContainer = Color(0xFFFFDAD6)
-val OnErrorContainer = Color(0xFF410002)
+// Error Colors
+val ErrorRed = Color(0xFFD32F2F) // Standard red for errors
+val OnErrorRed = Color(0xFFFFFFFF) // White text on error red
+val ErrorRedContainer = Color(0xFFFFCDD2) // Lighter red for error containers
+val OnErrorRedContainer = Color(0xFFB71C1C) // Darker red text on light red container
 
-val Background = Color(0xFFFBFDF9)
-val OnBackground = Color(0xFF191C1A)
-val Surface = Color(0xFFFBFDF9)
-val OnSurface = Color(0xFF191C1A)
+// Neutral Colors (Background, Surface, Text)
+val BackgroundLight = Color(0xFFF5F5F5) // Light gray background
+val OnBackgroundDark = Color(0xFF212121) // Dark text on light background
+val SurfaceLight = Color(0xFFFFFFFF) // White surface for cards, etc.
+val OnSurfaceDark = Color(0xFF212121) // Dark text on light surface
 
-val SurfaceVariant = Color(0xFFDCE5DE)
-val OnSurfaceVariant = Color(0xFF404944)
-val Outline = Color(0xFF707974)
+val SurfaceVariantLight = Color(0xFFE0E0E0) // Slightly darker gray for surface variants
+val OnSurfaceVariantDark = Color(0xFF424242) // Darker text on surface variant
+val OutlineGray = Color(0xFFBDBDBD) // Gray for outlines and dividers
