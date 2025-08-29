@@ -14,6 +14,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Save
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -22,6 +23,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.DropdownMenuItem
@@ -33,6 +35,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
@@ -46,6 +52,44 @@ import com.example.bloodsugar.viewmodel.SettingsViewModel
 fun SettingsScreen(navController: NavController, settingsViewModel: SettingsViewModel = viewModel()) {
     val uiState by settingsViewModel.uiState.collectAsState()
     val scrollState = rememberScrollState()
+    val context = LocalContext.current
+    var csvContentToSave by remember { mutableStateOf<String?>(null) }
+
+    val csvLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("text/csv"),
+        onResult = { uri ->
+            uri?.let {
+                csvContentToSave?.let { content ->
+                    try {
+                        context.contentResolver.openOutputStream(it)?.use { outputStream ->
+                            outputStream.write(content.toByteArray())
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                    csvContentToSave = null
+                }
+            }
+        }
+    )
+
+    LaunchedEffect(Unit) {
+        settingsViewModel.exportChannel.collect { csvContent ->
+            csvContentToSave = csvContent
+            csvLauncher.launch("bloodsugar_export_${System.currentTimeMillis()}.csv")
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        settingsViewModel.pdfExportChannel.collect { uri ->
+            val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                type = "application/pdf"
+                putExtra(android.content.Intent.EXTRA_STREAM, uri)
+                addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            context.startActivity(android.content.Intent.createChooser(intent, "Share PDF"))
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -163,6 +207,59 @@ fun SettingsScreen(navController: NavController, settingsViewModel: SettingsView
                                     }
                                 )
                             }
+                        }
+                    }
+                }
+            }
+
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        "Post-Meal Reminder",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("Enable post-meal notification")
+                        Switch(
+                            checked = uiState.postMealNotificationEnabled,
+                            onCheckedChange = { settingsViewModel.setPostMealNotificationEnabled(it) }
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = uiState.postMealNotificationDelay,
+                        onValueChange = { settingsViewModel.setPostMealNotificationDelay(it) },
+                        label = { Text("Delay after meal (minutes)") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = uiState.postMealNotificationEnabled
+                    )
+                }
+            }
+
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        "Export Data",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        Button(onClick = { settingsViewModel.exportDataAsCsv() }) {
+                            Text("Export as CSV")
+                        }
+                        Button(onClick = { settingsViewModel.exportDataAsPdf(context) }) {
+                            Text("Export as PDF")
                         }
                     }
                 }

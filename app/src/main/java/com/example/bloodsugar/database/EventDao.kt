@@ -20,4 +20,7 @@ interface EventDao {
 
     @Query("SELECT SUM(value) FROM events WHERE type = 'CARBS' AND timestamp BETWEEN :startOfDay AND :endOfDay")
     fun getCarbsSumForDay(startOfDay: Long, endOfDay: Long): Flow<Float?>
+
+    @Query("SELECT * FROM events ORDER BY timestamp DESC")
+    suspend fun getAllEventsList(): List<EventRecord>
 }

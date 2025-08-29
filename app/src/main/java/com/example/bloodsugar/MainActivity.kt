@@ -59,6 +59,7 @@ val items = listOf(
     Screen.Food,
     Screen.Notifications,
     Screen.Calculator,
+    Screen.Analysis
 )
 
 class MainActivity : ComponentActivity() {
@@ -176,7 +177,8 @@ fun MainScreen() {
             composable(Screen.Home.route) { HomeScreen(homeViewModel = homeViewModel) }
             composable(Screen.Food.route) { FoodScreen() }
             composable(Screen.Notifications.route) { NotificationsScreen() }
-                                                composable(Screen.Calculator.route) { CalculatorScreen(navController = navController, homeViewModel = homeViewModel) }
+            composable(Screen.Calculator.route) { CalculatorScreen(navController = navController, homeViewModel = homeViewModel) }
+            composable(Screen.Analysis.route) { com.example.bloodsugar.ui.screens.AnalysisScreen() }
             composable("settings") { SettingsScreen(navController) }
         }
     }

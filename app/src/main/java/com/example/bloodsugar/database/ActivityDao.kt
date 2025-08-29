@@ -17,4 +17,7 @@ interface ActivityDao {
 
     @Query("SELECT * FROM activities WHERE timestamp BETWEEN :startTime AND :endTime ORDER BY timestamp DESC")
     fun getActivitiesInRange(startTime: Long, endTime: Long): Flow<List<ActivityRecord>>
+
+    @Query("SELECT * FROM activities ORDER BY timestamp DESC")
+    suspend fun getAllActivitiesList(): List<ActivityRecord>
 }

@@ -22,6 +22,8 @@ class SettingsDataStore(context: Context) {
         val CARBS_PER_BU = floatPreferencesKey("carbs_per_bu")
         val DAILY_CARBS_GOAL = floatPreferencesKey("daily_carbs_goal")
         val INSULIN_DOSE_ACCURACY = floatPreferencesKey("insulin_dose_accuracy")
+        val POST_MEAL_NOTIFICATION_ENABLED = androidx.datastore.preferences.core.booleanPreferencesKey("post_meal_notification_enabled")
+        val POST_MEAL_NOTIFICATION_DELAY = androidx.datastore.preferences.core.intPreferencesKey("post_meal_notification_delay")
     }
 
     val breakfastCoefficient: Flow<Float> = dataStore.data.map {
@@ -48,6 +50,14 @@ class SettingsDataStore(context: Context) {
         it[PreferencesKeys.INSULIN_DOSE_ACCURACY] ?: 0.5f
     }
 
+    val postMealNotificationEnabled: Flow<Boolean> = dataStore.data.map {
+        it[PreferencesKeys.POST_MEAL_NOTIFICATION_ENABLED] ?: false
+    }
+
+    val postMealNotificationDelay: Flow<Int> = dataStore.data.map {
+        it[PreferencesKeys.POST_MEAL_NOTIFICATION_DELAY] ?: 120
+    }
+
     suspend fun saveCoefficients(breakfast: Float, dinner: Float, supper: Float) {
         dataStore.edit {
             it[PreferencesKeys.BREAKFAST_COEFFICIENT] = breakfast
@@ -71,6 +81,13 @@ class SettingsDataStore(context: Context) {
     suspend fun saveInsulinDoseAccuracy(accuracy: Float) {
         dataStore.edit {
             it[PreferencesKeys.INSULIN_DOSE_ACCURACY] = accuracy
+        }
+    }
+
+    suspend fun savePostMealNotificationSettings(enabled: Boolean, delay: Int) {
+        dataStore.edit {
+            it[PreferencesKeys.POST_MEAL_NOTIFICATION_ENABLED] = enabled
+            it[PreferencesKeys.POST_MEAL_NOTIFICATION_DELAY] = delay
         }
     }
 }

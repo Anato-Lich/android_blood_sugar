@@ -2,6 +2,9 @@ package com.example.bloodsugar.viewmodel
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.workDataOf
 import androidx.lifecycle.viewModelScope
 import com.example.bloodsugar.data.SettingsDataStore
 import com.example.bloodsugar.database.ActivityRecord
@@ -16,6 +19,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
@@ -78,6 +82,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val eventDao = db.eventDao()
     private val activityDao = db.activityDao()
     private val foodDao = db.foodDao()
+    private val workManager = androidx.work.WorkManager.getInstance(application)
 
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
@@ -293,6 +298,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     foodName = foodName,
                     foodServing = details
                 ))
+                schedulePostMealNotification(carbs)
             }
             _uiState.update { it.copy(insulinValue = "", carbsValue = "", selectedFood = null, foodServingValue = "") }
         }
@@ -312,6 +318,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     foodName = "Multiple Items",
                     foodServing = details
                 ))
+                schedulePostMealNotification(carbs)
             }
         }
     }
@@ -395,6 +402,40 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     fun deleteActivity(activity: ActivityRecord) {
         viewModelScope.launch {
             activityDao.delete(activity)
+        }
+    }
+
+    private fun schedulePostMealNotification(carbs: Float) {
+        viewModelScope.launch {
+            if (carbs > 0) {
+                val settingsFlow = combine(
+                    settingsDataStore.postMealNotificationEnabled,
+                    settingsDataStore.postMealNotificationDelay
+                ) { enabled, delay ->
+                    Pair(enabled, delay)
+                }
+
+                val (isEnabled, delay) = settingsFlow.first()
+
+                if (isEnabled) {
+                    val inputData = workDataOf(
+                        "message" to "Time to check your blood sugar after your meal.",
+                        "type" to "post-meal"
+                    )
+
+                    val postMealWorkRequest = OneTimeWorkRequestBuilder<com.example.bloodsugar.notifications.NotificationWorker>()
+                        .setInitialDelay(delay.toLong(), TimeUnit.MINUTES)
+                        .setInputData(inputData)
+                        .addTag("post-meal-notification")
+                        .build()
+
+                    workManager.enqueueUniqueWork(
+                        "post-meal-${System.currentTimeMillis()}",
+                        ExistingWorkPolicy.APPEND_OR_REPLACE,
+                        postMealWorkRequest
+                    )
+                }
+            }
         }
     }
 }

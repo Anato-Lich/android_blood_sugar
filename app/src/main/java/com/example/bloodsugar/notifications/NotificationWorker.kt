@@ -55,6 +55,10 @@ class NotificationWorker(appContext: Context, workerParams: WorkerParameters) : 
                         Log.d(TAG, "Interval notification outside window. Not showing.")
                     }
                 }
+                "post-meal" -> {
+                    Log.d(TAG, "Post-meal notification. Showing notification.")
+                    showNotification(message, null)
+                }
                 else -> {
                     Log.w(TAG, "Unknown notification type: $type")
                 }
@@ -65,7 +69,9 @@ class NotificationWorker(appContext: Context, workerParams: WorkerParameters) : 
                 return Result.success()
             }
 
-            reschedule(type)
+            if (type != "post-meal") { // Don't reschedule post-meal notifications
+                reschedule(type)
+            }
 
             Log.d(TAG, "Worker COMPLETED successfully")
             return Result.success()
