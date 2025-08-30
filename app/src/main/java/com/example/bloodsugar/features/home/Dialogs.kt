@@ -22,8 +22,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import com.example.bloodsugar.features.home.DialogType
-import com.example.bloodsugar.features.home.HomeUiState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

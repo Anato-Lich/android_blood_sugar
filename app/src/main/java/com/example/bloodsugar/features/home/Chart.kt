@@ -23,7 +23,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.bloodsugar.database.ActivityRecord
 import com.example.bloodsugar.database.BloodSugarRecord
 import com.example.bloodsugar.features.history.getValueColor
 import com.example.bloodsugar.domain.ChartData

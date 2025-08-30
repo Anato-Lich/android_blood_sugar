@@ -42,11 +42,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavController
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(navController: NavController, settingsViewModel: SettingsViewModel = viewModel()) {
+fun SettingsScreen(settingsViewModel: SettingsViewModel = viewModel()) {
     val uiState by settingsViewModel.uiState.collectAsState()
     val scrollState = rememberScrollState()
     val context = LocalContext.current

@@ -143,7 +143,7 @@ class NotificationsViewModel(application: Application) : AndroidViewModel(applic
                     Log.e("NotificationsViewModel", "Cannot schedule interval notification ${setting.id} without start/end time.")
                     null
                 } else {
-                    val nextExecutionTime = calculateNextIntervalTimestamp(setting.intervalMinutes, setting.startTime!!, setting.endTime!!)
+                    val nextExecutionTime = calculateNextIntervalTimestamp(setting.intervalMinutes, setting.startTime, setting.endTime)
                     if (nextExecutionTime == -1L) {
                         Log.e("NotificationsViewModel", "Could not calculate next execution time for ${setting.id}. Not scheduling.")
                         null
@@ -208,7 +208,7 @@ class NotificationsViewModel(application: Application) : AndroidViewModel(applic
         val now = java.util.Calendar.getInstance()
         val (startHour, startMinute) = startTimeStr.split(":").map { it.toInt() }
 
-        var anchor = java.util.Calendar.getInstance().apply {
+        val anchor = java.util.Calendar.getInstance().apply {
             set(java.util.Calendar.HOUR_OF_DAY, startHour)
             set(java.util.Calendar.MINUTE, startMinute)
             set(java.util.Calendar.SECOND, 0)
@@ -218,7 +218,7 @@ class NotificationsViewModel(application: Application) : AndroidViewModel(applic
             anchor.add(java.util.Calendar.DAY_OF_YEAR, -1)
         }
 
-        var nextTrigger = anchor.clone() as java.util.Calendar
+        val nextTrigger = anchor.clone() as java.util.Calendar
         while (nextTrigger.timeInMillis <= now.timeInMillis) {
             nextTrigger.add(java.util.Calendar.MINUTE, intervalMinutes)
         }

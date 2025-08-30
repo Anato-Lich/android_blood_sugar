@@ -15,7 +15,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.util.UUID
 
 data class CalculatorUiState(
     // Insulin from Carbs Tab
@@ -184,7 +183,7 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
 
             val accuracy = settingsDataStore.insulinDoseAccuracy.first()
             if (accuracy > 0f) {
-                val roundedInsulin = (kotlin.math.ceil(insulin / accuracy) * accuracy).toFloat()
+                val roundedInsulin = (kotlin.math.ceil(insulin / accuracy) * accuracy)
                 _uiState.update { it.copy(insulinDose = roundedInsulin) }
             } else {
                 _uiState.update { it.copy(insulinDose = insulin) }
@@ -276,22 +275,6 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
         _uiState.update { it.copy(remainingCarbsComponents = updatedComponents) }
     }
 
-    fun clearRemainingCarbsCalculator() {
-        _uiState.update { it.copy(
-            remainingCarbsComponents = emptyList(),
-            remainingCarbs = null,
-            totalCarbsForDose = null,
-            insulinDoseForRemainingCarbs = "",
-            manualCarbsEntry = "",
-            foodCarbs = "",
-            selectedFood = null,
-            foodServingValue = ""
-        ) }
-    }
-
-
-    // --- Other Tabs ---
-
     fun setInsulinDoseForCarbs(dose: String) {
         _uiState.update { it.copy(insulinDoseForCarbs = dose) }
     }
@@ -309,10 +292,6 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
 
     fun setInsulinDoseForRemainingCarbs(dose: String) {
         _uiState.update { it.copy(insulinDoseForRemainingCarbs = dose) }
-    }
-
-    fun setPlannedCarbs(carbs: String) {
-        _uiState.update { it.copy(plannedCarbs = carbs) }
     }
 
     fun calculateRemainingCarbs(mealType: MealType) {

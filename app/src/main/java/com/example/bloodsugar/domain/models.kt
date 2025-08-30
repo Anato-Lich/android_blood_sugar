@@ -48,9 +48,3 @@ data class MealComponent(
     val carbs: Float,
     val foodItemId: Long? = null
 )
-
-data class MealToLog(
-    val carbs: Float,
-    val insulin: Float?,
-    val details: List<String>
-)
