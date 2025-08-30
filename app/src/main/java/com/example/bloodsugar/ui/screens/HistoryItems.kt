@@ -26,12 +26,11 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-@Composable
-fun getValueColor(value: Float): Color {
+fun getValueColor(value: Float, lowColor: Color, inRangeColor: Color, highColor: Color): Color {
     return when {
-        value < 4f -> MaterialTheme.colorScheme.secondary // Low
-        value <= 10f -> MaterialTheme.colorScheme.primary // In Range
-        else -> MaterialTheme.colorScheme.error // High
+        value < 4f -> lowColor
+        value <= 10f -> inRangeColor
+        else -> highColor
     }
 }
 
@@ -50,7 +49,12 @@ fun RecordItem(
     record: BloodSugarRecord,
     onDelete: () -> Unit
 ) {
-    val valueColor = getValueColor(record.value)
+    val valueColor = getValueColor(
+        value = record.value,
+        lowColor = MaterialTheme.colorScheme.secondary,
+        inRangeColor = MaterialTheme.colorScheme.primary,
+        highColor = MaterialTheme.colorScheme.error
+    )
 
     Card(
         modifier = Modifier
@@ -119,8 +123,8 @@ fun EventHistoryItem(
     onDelete: () -> Unit
 ) {
     val (color, label, icon) = when (event.type) {
-        "INSULIN" -> Triple(Color(0xFF5C6BC0), "Insulin", Icons.Default.MedicalServices) // Indigo
-        "CARBS" -> Triple(Color(0xFFFFA726), "Carbs", Icons.Default.Restaurant) // Orange
+        "INSULIN" -> Triple(MaterialTheme.colorScheme.secondary, "Insulin", Icons.Default.MedicalServices)
+        "CARBS" -> Triple(MaterialTheme.colorScheme.tertiary, "Carbs", Icons.Default.Restaurant)
         else -> Triple(Color.Gray, "Unknown Event", Icons.Default.Info)
     }
     val valueText = when(event.type) {

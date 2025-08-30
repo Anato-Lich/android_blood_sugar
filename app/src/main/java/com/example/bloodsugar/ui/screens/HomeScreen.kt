@@ -1,18 +1,16 @@
 package com.example.bloodsugar.ui.screens
 
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.IntrinsicSize
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -22,24 +20,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.DirectionsBike
-import androidx.compose.material.icons.automirrored.filled.DirectionsRun
-import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.FitnessCenter
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.MedicalServices
-import androidx.compose.material.icons.filled.Restaurant
-import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -52,15 +37,12 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberDateRangePickerState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
@@ -73,14 +55,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.input.KeyboardType
@@ -91,7 +71,6 @@ import androidx.navigation.NavController
 import com.example.bloodsugar.database.ActivityRecord
 import com.example.bloodsugar.database.BloodSugarRecord
 import com.example.bloodsugar.database.EventRecord
-import com.example.bloodsugar.database.FoodItem
 import com.example.bloodsugar.viewmodel.ChartData
 import com.example.bloodsugar.viewmodel.DialogType
 import com.example.bloodsugar.viewmodel.FilterType
@@ -117,6 +96,8 @@ fun HomeScreen(
 
     var chartZoomLevel by remember { mutableStateOf(1f) }
     var chartPanOffset by remember { mutableStateOf(0f) }
+    var isScrubbing by remember { mutableStateOf(false) }
+    var scrubberPosition by remember { mutableStateOf(0f) }
 
     if (uiState.shownDialog != null) {
         LogInputDialog(
@@ -175,7 +156,7 @@ fun HomeScreen(
                     Metric("Max", uiState.chartData!!.max)
                 } else {
                     Text(
-                        "No data to display metrics.",
+                        "Log a blood sugar reading to see your metrics.",
                         modifier = Modifier.padding(16.dp),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -246,7 +227,14 @@ fun HomeScreen(
                     zoomLevel = chartZoomLevel,
                     panOffset = chartPanOffset,
                     onZoom = { newZoom -> chartZoomLevel = newZoom },
-                    onPan = { newPan -> chartPanOffset = newPan }
+                    onPan = { newPan -> chartPanOffset = newPan },
+                    isScrubbing = isScrubbing,
+                    scrubberPosition = scrubberPosition,
+                    onScrub = { position ->
+                        isScrubbing = true
+                        scrubberPosition = position
+                    },
+                    onScrubEnd = { isScrubbing = false }
                 )
 
                 var showFilterMenu by remember { mutableStateOf(false) }
@@ -298,7 +286,7 @@ fun HomeScreen(
                 Text("Recent History", style = MaterialTheme.typography.titleMedium, modifier = Modifier.align(Alignment.CenterHorizontally))
                 Spacer(modifier = Modifier.height(8.dp))
                 if (uiState.recentHistoryItems.isEmpty()) {
-                    Text("No recent history to show.", modifier = Modifier.align(Alignment.CenterHorizontally).padding(16.dp))
+                    Text("Your recent logs will appear here.", modifier = Modifier.align(Alignment.CenterHorizontally).padding(16.dp))
                 } else {
                     uiState.recentHistoryItems.forEach { item ->
                         when (item) {
@@ -440,7 +428,12 @@ fun TirBar(uiState: HomeUiState, modifier: Modifier = Modifier) {
 
 @Composable
 fun Metric(label: String, value: Float, modifier: Modifier = Modifier) {
-    val valueColor = getValueColor(value)
+    val valueColor = getValueColor(
+        value = value,
+        lowColor = MaterialTheme.colorScheme.secondary,
+        inRangeColor = MaterialTheme.colorScheme.primary,
+        highColor = MaterialTheme.colorScheme.error
+    )
     Card(
         modifier = modifier,
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
@@ -544,7 +537,11 @@ fun BloodSugarChart(
     zoomLevel: Float = 1f,
     panOffset: Float = 0f,
     onZoom: (Float) -> Unit,
-    onPan: (Float) -> Unit
+    onPan: (Float) -> Unit,
+    isScrubbing: Boolean,
+    scrubberPosition: Float,
+    onScrub: (Float) -> Unit,
+    onScrubEnd: () -> Unit
 ) {
     val records = chartData?.records ?: emptyList()
     val events = chartData?.events?.sortedBy { it.timestamp } ?: emptyList()
@@ -552,30 +549,42 @@ fun BloodSugarChart(
     val density = LocalDensity.current
 
     val tertiaryColor = MaterialTheme.colorScheme.tertiary
+    val errorColor = MaterialTheme.colorScheme.error
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val secondaryColor = MaterialTheme.colorScheme.secondary
+    val onSurfaceColor = MaterialTheme.colorScheme.onSurface
 
-    val textPaint = remember {
+    val textPaint = remember(density) {
         android.graphics.Paint().apply {
-            color = android.graphics.Color.BLACK
-            textSize = 12.sp.value * density.density
+            color = onSurfaceColor.toArgb()
+            textSize = with(density) { 12.sp.toPx() }
             textAlign = android.graphics.Paint.Align.CENTER
         }
     }
 
-    val eventTextPaint = remember {
+    val eventTextPaint = remember(density) {
         android.graphics.Paint().apply {
-            textSize = 10.sp.value * density.density
+            textSize = with(density) { 10.sp.toPx() }
             textAlign = android.graphics.Paint.Align.LEFT
         }
     }
     val eventBoxPaint = remember { android.graphics.Paint() }
 
+    val activityIndicatorTextPaint = remember(density) {
+        android.graphics.Paint().apply {
+            color = Color.White.toArgb()
+            textSize = with(density) { 10.sp.toPx() }
+            textAlign = android.graphics.Paint.Align.LEFT
+        }
+    }
+
     val recordPoints = remember { mutableStateMapOf<Long, Offset>() }
 
     val timeFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
-    val tooltipTextPaint = remember {
+    val tooltipTextPaint = remember(density) {
         android.graphics.Paint().apply {
-            color = android.graphics.Color.WHITE
-            textSize = 12.sp.value * density.density
+            color = Color.White.toArgb()
+            textSize = with(density) { 12.sp.toPx() }
             textAlign = android.graphics.Paint.Align.CENTER
         }
     }
@@ -588,7 +597,7 @@ fun BloodSugarChart(
     val padding = with(LocalDensity.current) { 16.dp.toPx() }
 
     Canvas(modifier = modifier
-        .pointerInput(records) {
+        .pointerInput(records, selectedRecord) {
             detectTapGestures(
                 onTap = { tapOffset ->
                     var tappedRecordId: Long? = null
@@ -614,24 +623,36 @@ fun BloodSugarChart(
                 }
             )
         }
-        .pointerInput(chartData?.rangeStart, chartData?.rangeEnd, padding) {
-            detectTransformGestures { centroid, pan, zoom, rotation ->
-                // Update zoom level
-                val newZoom = (zoomLevel * zoom).coerceIn(0.5f, 5f) // Clamp zoom level between 0.5x and 5x
-                onZoom(newZoom)
-
-                // Update pan offset
-                val chartWidthPx = size.width - (2f * padding) // Explicitly use 2f
-                val timePerPixel = ( (chartData?.rangeEnd ?: 0L) - (chartData?.rangeStart ?: 0L) ).toFloat() / chartWidthPx
-                val timeShift = pan.x * timePerPixel
-                onPan(panOffset - timeShift)
+        .pointerInput(chartData, zoomLevel, panOffset) {
+            detectTransformGestures { _, pan, zoom, _ ->
+                onZoom(zoomLevel * zoom)
+                if (chartData != null) {
+                    val chartWidthPx = size.width - (2f * padding)
+                    if (chartWidthPx > 0) {
+                        val timePerPixel =
+                            (chartData.rangeEnd - chartData.rangeStart).toFloat() / chartWidthPx
+                        val timeShift = pan.x * timePerPixel
+                        onPan(panOffset - timeShift)
+                    }
+                }
             }
+        }
+        .pointerInput(Unit) {
+            detectDragGesturesAfterLongPress(
+                onDragStart = { offset -> onScrub(offset.x) },
+                onDragEnd = { onScrubEnd() },
+                onDragCancel = { onScrubEnd() },
+                onDrag = { change, _ ->
+                    onScrub(change.position.x)
+                    change.consume()
+                }
+            )
         }
     ) {
         if (chartData == null || (records.isEmpty() && events.isEmpty() && activities.isEmpty())) {
             drawIntoCanvas {
                 it.nativeCanvas.drawText(
-                    "Not enough data to display chart",
+                    "Log a blood sugar reading to see your chart.",
                     center.x,
                     center.y,
                     textPaint
@@ -643,17 +664,16 @@ fun BloodSugarChart(
         val canvasWidth = size.width
         val canvasHeight = size.height
 
-        var initialMinTime = chartData.rangeStart
-        var initialMaxTime = chartData.rangeEnd
+        val initialMinTime = chartData.rangeStart
+        val initialMaxTime = chartData.rangeEnd
         val initialTimeRange = (initialMaxTime - initialMinTime).toFloat()
 
-        val visibleTimeRange = (initialTimeRange / zoomLevel).coerceIn(0f, initialTimeRange) // Ensure visibleTimeRange is not negative or larger than initial
+        val visibleTimeRange = (initialTimeRange / zoomLevel).coerceIn(0f, initialTimeRange)
         val currentCenterTime = (initialMinTime + initialMaxTime) / 2f + panOffset
 
         var calculatedMinTime = (currentCenterTime - visibleTimeRange / 2f).toLong()
         var calculatedMaxTime = (currentCenterTime + visibleTimeRange / 2f).toLong()
 
-        // Ensure the calculated range stays within the initial data range
         if (calculatedMinTime < initialMinTime) {
             calculatedMinTime = initialMinTime
             calculatedMaxTime = (initialMinTime + visibleTimeRange).toLong()
@@ -671,51 +691,12 @@ fun BloodSugarChart(
         val maxValue = 15f
         val valueRange = max(maxValue - minValue, 1f)
 
-        // Draw zone backgrounds
-        val yFor10 = padding + (canvasHeight - 2 * padding) - ((10f - minValue) / valueRange) * (canvasHeight - 2 * padding)
-        val yFor4 = padding + (canvasHeight - 2 * padding) - ((4f - minValue) / valueRange) * (canvasHeight - 2 * padding)
-        val chartTopY = padding
-        val chartBottomY = canvasHeight - padding
-        val chartLeftX = padding
-
-        drawRect(
-            brush = Brush.verticalGradient(
-                colors = listOf(Color.Red.copy(alpha = 0.05f), Color.Red.copy(alpha = 0.01f)),
-                startY = chartTopY,
-                endY = yFor10
-            ),
-            topLeft = Offset(chartLeftX, chartTopY),
-            size = Size(canvasWidth - 2 * padding, (yFor10 - chartTopY).coerceAtLeast(0f))
-        )
-
-        drawRect(
-            brush = Brush.verticalGradient(
-                colors = listOf(Color(0xFF006400).copy(alpha = 0.05f), Color(0xFF006400).copy(alpha = 0.01f)),
-                startY = yFor10,
-                endY = yFor4
-            ),
-            topLeft = Offset(chartLeftX, yFor10),
-            size = Size(canvasWidth - 2 * padding, (yFor4 - yFor10).coerceAtLeast(0f))
-        )
-
-        drawRect(
-            brush = Brush.verticalGradient(
-                colors = listOf(Color.Blue.copy(alpha = 0.05f), Color.Blue.copy(alpha = 0.01f)),
-                startY = yFor4,
-                endY = chartBottomY
-            ),
-            topLeft = Offset(chartLeftX, yFor4),
-            size = Size(canvasWidth - 2 * padding, (chartBottomY - yFor4).coerceAtLeast(0f))
-        )
-
-        // Function to transform data points to canvas coordinates
         fun toOffset(timestamp: Long, value: Float): Offset {
             val x = padding + ((timestamp - minTime).toFloat() / timeRange) * (canvasWidth - 2 * padding)
             val y = padding + (canvasHeight - 2 * padding) - ((value.coerceIn(minValue, maxValue) - minValue) / valueRange) * (canvasHeight - 2 * padding)
             return Offset(x, y)
         }
 
-        // Generic function to group items by time proximity to avoid clutter
         fun <T> groupItemsByTime(items: List<T>, getTimestamp: (T) -> Long): List<List<T>> {
             if (items.isEmpty()) return emptyList()
             val sortedItems = items.sortedBy { getTimestamp(it) }
@@ -737,11 +718,45 @@ fun BloodSugarChart(
             return groupedItems
         }
 
-        // Draw grid lines and labels
+        val yFor10 = toOffset(minTime, 10f).y
+        val yFor4 = toOffset(minTime, 4f).y
+        val chartTopY = padding
+        val chartBottomY = canvasHeight - padding
+        val chartLeftX = padding
+
+        drawRect(
+            brush = Brush.verticalGradient(
+                colors = listOf(errorColor.copy(alpha = 0.05f), errorColor.copy(alpha = 0.01f)),
+                startY = chartTopY,
+                endY = yFor10
+            ),
+            topLeft = Offset(chartLeftX, chartTopY),
+            size = Size(canvasWidth - 2 * padding, (yFor10 - chartTopY).coerceAtLeast(0f))
+        )
+
+        drawRect(
+            brush = Brush.verticalGradient(
+                colors = listOf(primaryColor.copy(alpha = 0.05f), primaryColor.copy(alpha = 0.01f)),
+                startY = yFor10,
+                endY = yFor4
+            ),
+            topLeft = Offset(chartLeftX, yFor10),
+            size = Size(canvasWidth - 2 * padding, (yFor4 - yFor10).coerceAtLeast(0f))
+        )
+
+        drawRect(
+            brush = Brush.verticalGradient(
+                colors = listOf(secondaryColor.copy(alpha = 0.05f), secondaryColor.copy(alpha = 0.01f)),
+                startY = yFor4,
+                endY = chartBottomY
+            ),
+            topLeft = Offset(chartLeftX, yFor4),
+            size = Size(canvasWidth - 2 * padding, (chartBottomY - yFor4).coerceAtLeast(0f))
+        )
+
         val gridLineColor = Color.LightGray
         val labelCount = 5
         for (i in 0..labelCount) {
-            // Horizontal lines and Y-axis labels
             val y = padding + (canvasHeight - 2 * padding) * i / labelCount
             drawLine(gridLineColor, start = Offset(padding, y), end = Offset(canvasWidth - padding, y))
             val label = minValue + (valueRange * (labelCount - i) / labelCount)
@@ -757,8 +772,7 @@ fun BloodSugarChart(
 
         val displayTimeRange = maxTime - minTime
         if (displayTimeRange <= TimeUnit.HOURS.toMillis(26)) {
-            val cal = Calendar.getInstance()
-            cal.timeInMillis = minTime
+            val cal = Calendar.getInstance().apply { timeInMillis = minTime }
             cal.set(Calendar.MINUTE, 0)
             cal.set(Calendar.SECOND, 0)
             cal.add(Calendar.HOUR_OF_DAY, 1)
@@ -774,12 +788,10 @@ fun BloodSugarChart(
             var currentLabelTime = firstLabelTime
             while (currentLabelTime <= maxTime) {
                 val x = toOffset(currentLabelTime, 0f).x
-                if (x <= canvasWidth - padding) { // Ensure line is within chart bounds
+                if (x <= canvasWidth - padding) {
                     drawLine(gridLineColor, start = Offset(x, padding), end = Offset(x, canvasHeight - padding))
                     val dateLabel = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(currentLabelTime))
-                    drawIntoCanvas {
-                        it.nativeCanvas.drawText(dateLabel, x, canvasHeight - padding / 4, textPaint)
-                    }
+                    drawIntoCanvas { it.nativeCanvas.drawText(dateLabel, x, canvasHeight - padding / 4, textPaint) }
                 }
                 cal.timeInMillis = currentLabelTime
                 cal.add(Calendar.HOUR_OF_DAY, stepHours)
@@ -789,45 +801,25 @@ fun BloodSugarChart(
             for (i in 0..labelCount) {
                 val x = padding + (canvasWidth - 2 * padding) * i / labelCount
                 drawLine(gridLineColor, start = Offset(x, padding), end = Offset(x, canvasHeight - padding))
-                val timestamp = (minTime + ((maxTime - minTime) * i / labelCount)).toLong()
+                val timestamp = (minTime + (timeRange * i / labelCount)).toLong()
                 val dateLabel = SimpleDateFormat("MM/dd", Locale.getDefault()).format(Date(timestamp))
-                drawIntoCanvas {
-                    it.nativeCanvas.drawText(
-                        dateLabel,
-                        x,
-                        canvasHeight - padding / 4,
-                        textPaint
-                    )
-                }
+                drawIntoCanvas { it.nativeCanvas.drawText(dateLabel, x, canvasHeight - padding / 4, textPaint) }
             }
         }
 
         val pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f)
-        if (4f >= minValue && 4f <= maxValue) {
+        if (4f in minValue..maxValue) {
             val y = toOffset(minTime, 4f).y
-            drawLine(
-                color = Color.Blue,
-                start = Offset(padding, y),
-                end = Offset(canvasWidth - padding, y),
-                strokeWidth = 2f,
-                pathEffect = pathEffect
-            )
+            drawLine(secondaryColor, start = Offset(padding, y), end = Offset(canvasWidth - padding, y), strokeWidth = 2f, pathEffect = pathEffect)
         }
-        if (10f >= minValue && 10f <= maxValue) {
+        if (10f in minValue..maxValue) {
             val y = toOffset(minTime, 10f).y
-            drawLine(
-                color = Color.Red,
-                start = Offset(padding, y),
-                end = Offset(canvasWidth - padding, y),
-                strokeWidth = 2f,
-                pathEffect = pathEffect
-            )
+            drawLine(errorColor, start = Offset(padding, y), end = Offset(canvasWidth - padding, y), strokeWidth = 2f, pathEffect = pathEffect)
         }
 
-        // Draw data path
         if (records.size >= 2) {
-            val linePath = Path()
             val fillPath = Path()
+            val linePath = Path()
 
             records.forEachIndexed { i, record ->
                 val p1 = toOffset(record.timestamp, record.value)
@@ -844,27 +836,22 @@ fun BloodSugarChart(
                     linePath.cubicTo(cx1, cy1, cx2, cy2, p1.x, p1.y)
                     fillPath.cubicTo(cx1, cy1, cx2, cy2, p1.x, p1.y)
                 }
+            }
 
-                val value = record.value
-                val color = when {
-                    value <= 4f -> Color.Blue
-                    value <= 10f -> Color(0xFF006400) // Dark Green
-                    else -> Color.Red
+            for (i in 0 until records.size - 1) {
+                val p0 = toOffset(records[i].timestamp, records[i].value)
+                val p1 = toOffset(records[i + 1].timestamp, records[i + 1].value)
+                val segmentPath = Path().apply {
+                    moveTo(p0.x, p0.y)
+                    cubicTo(p0.x + (p1.x - p0.x) / 2f, p0.y, p0.x + (p1.x - p0.x) / 2f, p1.y, p1.x, p1.y)
                 }
-
-                if (i > 0) {
-                    val pPrev = toOffset(records[i-1].timestamp, records[i-1].value)
-                    val prevColor = when {
-                        records[i-1].value <= 4f -> Color.Blue
-                        records[i-1].value <= 10f -> Color(0xFF006400)
-                        else -> Color.Red
-                    }
-                    drawPath(
-                        path = linePath,
-                        brush = Brush.linearGradient(colors = listOf(prevColor, color), start = pPrev, end = p1),
-                        style = Stroke(width = 5f)
-                    )
-                }
+                val color0 = getValueColor(records[i].value, secondaryColor, primaryColor, errorColor)
+                val color1 = getValueColor(records[i + 1].value, secondaryColor, primaryColor, errorColor)
+                drawPath(
+                    path = segmentPath,
+                    brush = Brush.linearGradient(colors = listOf(color0, color1), start = p0, end = p1),
+                    style = Stroke(width = 5f)
+                )
             }
 
             val lastPoint = toOffset(records.last().timestamp, records.last().value)
@@ -874,24 +861,18 @@ fun BloodSugarChart(
             drawPath(
                 path = fillPath,
                 brush = Brush.verticalGradient(
-                    colors = listOf(Color.LightGray.copy(alpha = 0.4f), Color.Transparent),
+                    colors = listOf(primaryColor.copy(alpha = 0.2f), Color.Transparent),
                     startY = 0f,
                     endY = chartBottomY
                 )
             )
         }
 
-        // Draw data points
         recordPoints.clear()
         records.forEach { record ->
             val point = toOffset(record.timestamp, record.value)
             recordPoints[record.id] = point
-            val value = record.value
-            val color = when {
-                value <= 4f -> Color.Blue
-                value <= 10f -> Color(0xFF006400) // Dark Green
-                else -> Color.Red
-            }
+            val color = getValueColor(record.value, secondaryColor, primaryColor, errorColor)
             drawCircle(color = color, radius = 8f, center = point)
             drawCircle(color = Color.White, radius = 5f, center = point)
 
@@ -900,7 +881,6 @@ fun BloodSugarChart(
             }
         }
 
-        // Draw tooltip for selected record
         selectedRecord?.let { record ->
             val point = toOffset(record.timestamp, record.value)
             val valueText = "%.1f".format(record.value)
@@ -919,43 +899,67 @@ fun BloodSugarChart(
 
             drawIntoCanvas {
                 it.nativeCanvas.drawRoundRect(boxRect, 10.dp.toPx(), 10.dp.toPx(), tooltipBgPaint)
-                it.nativeCanvas.drawText(
-                    valueText,
-                    point.x,
-                    boxTop + boxPadding + textHeight - tooltipTextPaint.descent(),
-                    tooltipTextPaint
-                )
-                it.nativeCanvas.drawText(
-                    timeText,
-                    point.x,
-                    boxTop + boxPadding + (textHeight * 2) - tooltipTextPaint.descent(),
-                    tooltipTextPaint
-                )
+                it.nativeCanvas.drawText(valueText, point.x, boxTop + boxPadding + textHeight - tooltipTextPaint.descent(), tooltipTextPaint)
+                it.nativeCanvas.drawText(timeText, point.x, boxTop + boxPadding + (textHeight * 2) - tooltipTextPaint.descent(), tooltipTextPaint)
             }
         }
 
-        // Draw event lines
+        if (isScrubbing) {
+            val scrubberX = scrubberPosition.coerceIn(padding, canvasWidth - padding)
+            val scrubberTime = minTime + ((scrubberX - padding) / (canvasWidth - 2 * padding)) * timeRange
+
+            val nextRecordIndex = records.indexOfFirst { it.timestamp >= scrubberTime }
+            if (nextRecordIndex > 0) {
+                val prevRecord = records[nextRecordIndex - 1]
+                val nextRecord = records[nextRecordIndex]
+
+                val t = (scrubberTime - prevRecord.timestamp) / (nextRecord.timestamp - prevRecord.timestamp).toFloat()
+                val interpolatedValue = prevRecord.value + t * (nextRecord.value - prevRecord.value)
+
+                val scrubberY = toOffset(scrubberTime.toLong(), interpolatedValue).y
+
+                drawLine(color = onSurfaceColor, start = Offset(scrubberX, padding), end = Offset(scrubberX, canvasHeight - padding), strokeWidth = 2f)
+                drawCircle(color = primaryColor, radius = 10f, center = Offset(scrubberX, scrubberY))
+
+                val valueText = "%.1f".format(interpolatedValue)
+                val timeText = timeFormat.format(Date(scrubberTime.toLong()))
+
+                val textWidth = max(tooltipTextPaint.measureText(valueText), tooltipTextPaint.measureText(timeText))
+                val textHeight = tooltipTextPaint.descent() - tooltipTextPaint.ascent()
+                val boxPadding = 8.dp.toPx()
+                val boxHeight = (textHeight * 2) + (boxPadding * 2.5f)
+                val boxWidth = textWidth + (boxPadding * 2)
+
+                var boxLeft = scrubberX - (boxWidth / 2)
+                if (boxLeft < padding) boxLeft = padding
+                if (boxLeft + boxWidth > canvasWidth - padding) boxLeft = canvasWidth - padding - boxWidth
+
+                val boxTop = padding
+                val boxRect = android.graphics.RectF(boxLeft, boxTop, boxLeft + boxWidth, boxTop + boxHeight)
+
+                drawIntoCanvas {
+                    it.nativeCanvas.drawRoundRect(boxRect, 10.dp.toPx(), 10.dp.toPx(), tooltipBgPaint)
+                    it.nativeCanvas.drawText(valueText, boxLeft + boxWidth / 2, boxTop + boxPadding + textHeight - tooltipTextPaint.descent(), tooltipTextPaint)
+                    it.nativeCanvas.drawText(timeText, boxLeft + boxWidth / 2, boxTop + boxPadding + (textHeight * 2) - tooltipTextPaint.descent(), tooltipTextPaint)
+                }
+            }
+        }
+
         val groupedEvents = groupItemsByTime(events) { it.timestamp }
         groupedEvents.forEach { group ->
             var yOffset = 0f
             val firstEventX = toOffset(group.first().timestamp, 0f).x
 
-            drawLine(
-                color = Color.DarkGray.copy(alpha = 0.5f),
-                start = Offset(firstEventX, padding),
-                end = Offset(firstEventX, canvasHeight - padding),
-                strokeWidth = 2f,
-                pathEffect = PathEffect.dashPathEffect(floatArrayOf(5f, 5f), 0f)
-            )
+            drawLine(color = Color.DarkGray.copy(alpha = 0.5f), start = Offset(firstEventX, padding), end = Offset(firstEventX, canvasHeight - padding), strokeWidth = 2f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(5f, 5f), 0f))
 
             group.forEach { event ->
                 val (color, label) = when (event.type) {
-                    "INSULIN" -> Color.Blue to "I: ${event.value}u"
-                    "CARBS" -> Color(0xFFFFA500) to "C: ${event.value}g"
+                    "INSULIN" -> secondaryColor to "I: ${event.value}u"
+                    "CARBS" -> tertiaryColor to "C: ${event.value}g"
                     else -> Color.Gray to ""
                 }
 
-                eventTextPaint.color = android.graphics.Color.WHITE
+                eventTextPaint.color = Color.White.toArgb()
                 eventBoxPaint.color = color.toArgb()
 
                 val textWidth = eventTextPaint.measureText(label)
@@ -968,43 +972,24 @@ fun BloodSugarChart(
 
                 drawIntoCanvas {
                     it.nativeCanvas.drawRoundRect(boxRect, 8.dp.toPx(), 8.dp.toPx(), eventBoxPaint)
-                    it.nativeCanvas.drawText(
-                        label,
-                        boxRect.left + boxPadding,
-                        boxRect.top + boxPadding + textHeight - eventTextPaint.descent(),
-                        eventTextPaint
-                    )
+                    it.nativeCanvas.drawText(label, boxRect.left + boxPadding, boxRect.top + boxPadding + textHeight - eventTextPaint.descent(), eventTextPaint)
                 }
                 yOffset += boxRect.height() + 4.dp.toPx()
             }
         }
 
-        // Draw activity indicators
         val groupedActivities = groupItemsByTime(activities) { it.timestamp }
         groupedActivities.forEach { group ->
             var yOffset = 0f
             val firstActivityX = toOffset(group.first().timestamp, 0f).x
 
-            drawLine(
-                color = tertiaryColor.copy(alpha = 0.5f),
-                start = Offset(firstActivityX, padding),
-                end = Offset(firstActivityX, canvasHeight - padding),
-                strokeWidth = 2f,
-                pathEffect = PathEffect.dashPathEffect(floatArrayOf(5f, 5f), 0f)
-            )
+            drawLine(color = tertiaryColor.copy(alpha = 0.5f), start = Offset(firstActivityX, padding), end = Offset(firstActivityX, canvasHeight - padding), strokeWidth = 2f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(5f, 5f), 0f))
 
             group.reversed().forEach { activity ->
                 val label1 = activity.type
                 val label2 = "${activity.durationMinutes} min"
 
-                val activityIndicatorTextPaint = android.graphics.Paint().apply {
-                    color = Color.White.toArgb()
-                    textSize = 10.sp.value * density.density
-                    textAlign = android.graphics.Paint.Align.LEFT
-                }
-                val boxPaint = android.graphics.Paint().apply {
-                    color = tertiaryColor.toArgb()
-                }
+                val boxPaint = android.graphics.Paint().apply { color = tertiaryColor.toArgb() }
 
                 val textWidth = max(activityIndicatorTextPaint.measureText(label1), activityIndicatorTextPaint.measureText(label2))
                 val textHeight = activityIndicatorTextPaint.descent() - activityIndicatorTextPaint.ascent()
@@ -1019,31 +1004,14 @@ fun BloodSugarChart(
 
                 drawIntoCanvas {
                     it.nativeCanvas.drawRoundRect(boxRect, 8.dp.toPx(), 8.dp.toPx(), boxPaint)
-                    it.nativeCanvas.drawText(
-                        label1,
-                        boxRect.left + boxPadding,
-                        boxRect.top + boxPadding + textHeight - activityIndicatorTextPaint.descent(),
-                        activityIndicatorTextPaint
-                    )
-                    it.nativeCanvas.drawText(
-                        label2,
-                        boxRect.left + boxPadding,
-                        boxRect.top + (2 * boxPadding) + (2 * textHeight) - activityIndicatorTextPaint.descent(),
-                        activityIndicatorTextPaint
-                    )
+                    it.nativeCanvas.drawText(label1, boxRect.left + boxPadding, boxRect.top + boxPadding + textHeight - activityIndicatorTextPaint.descent(), activityIndicatorTextPaint)
+                    it.nativeCanvas.drawText(label2, boxRect.left + boxPadding, boxRect.top + (2 * boxPadding) + (2 * textHeight) - activityIndicatorTextPaint.descent(), activityIndicatorTextPaint)
                 }
                 yOffset += boxHeight + 4.dp.toPx()
             }
         }
     }
 }
-
-
-
-
-
-
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

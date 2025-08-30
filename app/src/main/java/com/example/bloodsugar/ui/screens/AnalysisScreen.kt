@@ -63,40 +63,40 @@ fun TirCard(uiState: com.example.bloodsugar.viewmodel.AnalysisUiState) {
                         Box(modifier = Modifier
                             .fillMaxHeight()
                             .weight(uiState.veryLow)
-                            .background(Color.Blue.copy(alpha = 0.7f))
+                            .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.7f))
                         )
                     }
                     if (uiState.low > 0) {
                         Box(modifier = Modifier
                             .fillMaxHeight()
                             .weight(uiState.low)
-                            .background(Color.Blue.copy(alpha = 0.4f))
+                            .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.4f))
                         )
                     }
                     if (uiState.timeInRange > 0) {
                         Box(modifier = Modifier
                             .fillMaxHeight()
                             .weight(uiState.timeInRange)
-                            .background(Color(0xFF006400))
+                            .background(MaterialTheme.colorScheme.primary)
                         )
                     }
                     if (uiState.high > 0) {
                         Box(modifier = Modifier
                             .fillMaxHeight()
                             .weight(uiState.high)
-                            .background(Color.Red.copy(alpha = 0.4f))
+                            .background(MaterialTheme.colorScheme.error.copy(alpha = 0.4f))
                         )
                     }
                     if (uiState.veryHigh > 0) {
                         Box(modifier = Modifier
                             .fillMaxHeight()
                             .weight(uiState.veryHigh)
-                            .background(Color.Red.copy(alpha = 0.7f))
+                            .background(MaterialTheme.colorScheme.error.copy(alpha = 0.7f))
                         )
                     }
                 }
             } else {
-                Text("No data to display Time in Range distribution.", modifier = Modifier.align(Alignment.CenterHorizontally))
+                Text("Log at least two blood sugar readings to see your Time in Range analysis.", modifier = Modifier.align(Alignment.CenterHorizontally))
             }
 
             Spacer(modifier = Modifier.height(16.dp))

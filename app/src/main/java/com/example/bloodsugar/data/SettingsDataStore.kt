@@ -58,36 +58,20 @@ class SettingsDataStore(context: Context) {
         it[PreferencesKeys.POST_MEAL_NOTIFICATION_DELAY] ?: 120
     }
 
-    suspend fun saveCoefficients(breakfast: Float, dinner: Float, supper: Float) {
+    suspend fun saveSettings(
+        breakfast: Float, dinner: Float, supper: Float,
+        carbsPerBu: Float, dailyCarbsGoal: Float, insulinDoseAccuracy: Float,
+        postMealEnabled: Boolean, postMealDelay: Int
+    ) {
         dataStore.edit {
             it[PreferencesKeys.BREAKFAST_COEFFICIENT] = breakfast
             it[PreferencesKeys.DINNER_COEFFICIENT] = dinner
             it[PreferencesKeys.SUPPER_COEFFICIENT] = supper
-        }
-    }
-
-    suspend fun saveCarbsPerBu(carbs: Float) {
-        dataStore.edit {
-            it[PreferencesKeys.CARBS_PER_BU] = carbs
-        }
-    }
-
-    suspend fun saveDailyCarbsGoal(goal: Float) {
-        dataStore.edit {
-            it[PreferencesKeys.DAILY_CARBS_GOAL] = goal
-        }
-    }
-
-    suspend fun saveInsulinDoseAccuracy(accuracy: Float) {
-        dataStore.edit {
-            it[PreferencesKeys.INSULIN_DOSE_ACCURACY] = accuracy
-        }
-    }
-
-    suspend fun savePostMealNotificationSettings(enabled: Boolean, delay: Int) {
-        dataStore.edit {
-            it[PreferencesKeys.POST_MEAL_NOTIFICATION_ENABLED] = enabled
-            it[PreferencesKeys.POST_MEAL_NOTIFICATION_DELAY] = delay
+            it[PreferencesKeys.CARBS_PER_BU] = carbsPerBu
+            it[PreferencesKeys.DAILY_CARBS_GOAL] = dailyCarbsGoal
+            it[PreferencesKeys.INSULIN_DOSE_ACCURACY] = insulinDoseAccuracy
+            it[PreferencesKeys.POST_MEAL_NOTIFICATION_ENABLED] = postMealEnabled
+            it[PreferencesKeys.POST_MEAL_NOTIFICATION_DELAY] = postMealDelay
         }
     }
 }

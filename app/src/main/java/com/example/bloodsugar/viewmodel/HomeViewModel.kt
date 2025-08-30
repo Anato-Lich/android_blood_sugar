@@ -201,7 +201,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun calculateTir(records: List<BloodSugarRecord>) {
-        if (records.size < 2) {
+        val sortedRecords = records.sortedByDescending { it.timestamp }
+        if (sortedRecords.size < 2) {
             _uiState.update { it.copy(timeInRange = 0f, timeAboveRange = 0f, timeBelowRange = 0f) }
             return
         }
@@ -210,9 +211,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         var durationInRange = 0L
         var durationHigh = 0L
 
-        for (i in 0 until records.size - 1) {
-            val currentRecord = records[i]
-            val nextRecord = records[i+1]
+        for (i in 0 until sortedRecords.size - 1) {
+            val currentRecord = sortedRecords[i]
+            val nextRecord = sortedRecords[i+1]
             val duration = currentRecord.timestamp - nextRecord.timestamp
 
             val avgValue = (currentRecord.value + nextRecord.value) / 2f
@@ -224,7 +225,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
 
-        val totalDuration = records.first().timestamp - records.last().timestamp
+        val totalDuration = sortedRecords.first().timestamp - sortedRecords.last().timestamp
         if (totalDuration > 0) {
             val totalDurationFloat = totalDuration.toFloat()
             _uiState.update { it.copy(
@@ -232,6 +233,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 timeAboveRange = (durationHigh / totalDurationFloat) * 100,
                 timeBelowRange = (durationLow / totalDurationFloat) * 100
             ) }
+        } else {
+            _uiState.update { it.copy(timeInRange = 0f, timeAboveRange = 0f, timeBelowRange = 0f) }
         }
     }
 

@@ -120,23 +120,15 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun saveSettings() {
         viewModelScope.launch {
-            settingsDataStore.saveCoefficients(
+            settingsDataStore.saveSettings(
                 breakfast = _uiState.value.breakfastCoefficient.replace(',', '.').toFloatOrNull() ?: 0f,
                 dinner = _uiState.value.dinnerCoefficient.replace(',', '.').toFloatOrNull() ?: 0f,
-                supper = _uiState.value.supperCoefficient.replace(',', '.').toFloatOrNull() ?: 0f
-            )
-            settingsDataStore.saveCarbsPerBu(
-                carbs = _uiState.value.carbsPerBu.replace(',', '.').toFloatOrNull() ?: 10f
-            )
-            settingsDataStore.saveDailyCarbsGoal(
-                goal = _uiState.value.dailyCarbsGoal.replace(',', '.').toFloatOrNull() ?: 200f
-            )
-            settingsDataStore.saveInsulinDoseAccuracy(
-                accuracy = _uiState.value.insulinDoseAccuracy.replace(',', '.').toFloatOrNull() ?: 0.5f
-            )
-            settingsDataStore.savePostMealNotificationSettings(
-                enabled = _uiState.value.postMealNotificationEnabled,
-                delay = _uiState.value.postMealNotificationDelay.toIntOrNull() ?: 120
+                supper = _uiState.value.supperCoefficient.replace(',', '.').toFloatOrNull() ?: 0f,
+                carbsPerBu = _uiState.value.carbsPerBu.replace(',', '.').toFloatOrNull() ?: 10f,
+                dailyCarbsGoal = _uiState.value.dailyCarbsGoal.replace(',', '.').toFloatOrNull() ?: 200f,
+                insulinDoseAccuracy = _uiState.value.insulinDoseAccuracy.replace(',', '.').toFloatOrNull() ?: 0.5f,
+                postMealEnabled = _uiState.value.postMealNotificationEnabled,
+                postMealDelay = _uiState.value.postMealNotificationDelay.toIntOrNull() ?: 120
             )
             _uiState.update { it.copy(hasUnsavedChanges = false) }
         }
