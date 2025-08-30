@@ -1,0 +1,270 @@
+package com.example.bloodsugar.features.home
+
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
+import com.example.bloodsugar.database.ActivityRecord
+import com.example.bloodsugar.database.BloodSugarRecord
+import com.example.bloodsugar.database.EventRecord
+import com.example.bloodsugar.features.history.RecordItem
+import com.example.bloodsugar.features.history.EventHistoryItem
+import com.example.bloodsugar.features.history.ActivityHistoryItem
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
+@Composable
+fun HomeScreen(
+    homeViewModel: HomeViewModel,
+    navController: NavController
+) {
+    val uiState by homeViewModel.uiState.collectAsState()
+    var showCustomDateRangePicker by remember { mutableStateOf(false) }
+
+    var chartZoomLevel by remember { mutableFloatStateOf(1f) }
+    var chartPanOffset by remember { mutableFloatStateOf(0f) }
+    var isScrubbing by remember { mutableStateOf(false) }
+    var scrubberPosition by remember { mutableFloatStateOf(0f) }
+
+    if (uiState.shownDialog != null) {
+        LogInputDialog(
+            dialogType = uiState.shownDialog!!,
+            uiState = uiState,
+            onDismiss = { homeViewModel.onDialogDismiss() },
+            onSaveRecord = {
+                homeViewModel.saveRecord()
+                homeViewModel.onDialogDismiss()
+            },
+            onSaveEvent = {
+                homeViewModel.saveInsulinCarbEvent()
+                homeViewModel.onDialogDismiss()
+            },
+            onSaveActivity = {
+                homeViewModel.saveActivity()
+                homeViewModel.onDialogDismiss()
+            },
+            onSugarChange = { homeViewModel.setSugarValue(it) },
+            onCommentChange = { homeViewModel.setComment(it) },
+            onInsulinChange = { homeViewModel.setInsulinValue(it) },
+            onCarbsChange = { homeViewModel.setCarbsValue(it) },
+            onActivityTypeChange = { homeViewModel.setActivityType(it) },
+            onActivityDurationChange = { homeViewModel.setActivityDuration(it) },
+            onActivityIntensityChange = { homeViewModel.setActivityIntensity(it) }
+        )
+    }
+
+    if (showCustomDateRangePicker) {
+        CustomDateRangePicker(
+            onDismiss = { showCustomDateRangePicker = false },
+            onConfirm = { start, end ->
+                homeViewModel.setCustomDateRange(start, end)
+                showCustomDateRangePicker = false
+            }
+        )
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        // Key Metrics Card
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier.padding(20.dp).fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceAround
+            ) {
+                if (uiState.chartData != null) {
+                    Metric("Min", uiState.chartData!!.min)
+                    Metric("Avg", uiState.chartData!!.avg)
+                    Metric("Max", uiState.chartData!!.max)
+                } else {
+                    Text(
+                        "Log a blood sugar reading to see your metrics.",
+                        modifier = Modifier.padding(16.dp),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier.fillMaxWidth().height(150.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Column(
+                    modifier = Modifier.weight(1.5f).fillMaxHeight(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    val pagerState = rememberPagerState(pageCount = { 3 })
+                    HorizontalPager(
+                        state = pagerState,
+                        modifier = Modifier.fillMaxWidth().weight(1f)
+                    ) { page ->
+                        val cardModifier = Modifier.fillMaxWidth()
+                        when (page) {
+                            0 -> Hba1cMetric(uiState.estimatedA1c, modifier = cardModifier)
+                            1 -> CarbsProgressMetric(
+                                consumed = uiState.todaysCarbs,
+                                goal = uiState.dailyCarbsGoal,
+                                modifier = cardModifier
+                            )
+                            2 -> TirBar(uiState = uiState, modifier = cardModifier)
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        Modifier.height(20.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        repeat(pagerState.pageCount) { iteration ->
+                            val color = if (pagerState.currentPage == iteration) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
+                            Box(
+                                modifier = Modifier
+                                    .padding(2.dp)
+                                    .clip(CircleShape)
+                                    .background(color)
+                                    .size(8.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // Chart Card
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(top = 16.dp, start = 16.dp, end = 16.dp)) {
+                BloodSugarChart(
+                    chartData = uiState.chartData,
+                    selectedRecord = uiState.selectedRecord,
+                    onRecordClick = homeViewModel::onChartRecordSelected,
+                    onDismissTooltip = homeViewModel::onChartSelectionDismissed,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(250.dp),
+                    zoomLevel = chartZoomLevel,
+                    panOffset = chartPanOffset,
+                    onZoom = { newZoom -> chartZoomLevel = newZoom },
+                    onPan = { newPan -> chartPanOffset = newPan },
+                    isScrubbing = isScrubbing,
+                    scrubberPosition = scrubberPosition,
+                    onScrub = { position ->
+                        isScrubbing = true
+                        scrubberPosition = position
+                    },
+                    onScrubEnd = { isScrubbing = false }
+                )
+
+                var showFilterMenu by remember { mutableStateOf(false) }
+                Box(modifier = Modifier.align(Alignment.CenterHorizontally).padding(vertical = 8.dp)) {
+                    Button(onClick = { showFilterMenu = true }) {
+                        val filterText = when (uiState.selectedFilter) {
+                            FilterType.TODAY -> "Today"
+                            FilterType.THREE_DAYS -> "3 Days"
+                            FilterType.SEVEN_DAYS -> "7 Days"
+                            FilterType.CUSTOM -> "Custom"
+                        }
+                        Text(text = "Filter: $filterText")
+                    }
+                    DropdownMenu(
+                        expanded = showFilterMenu,
+                        onDismissRequest = { showFilterMenu = false }
+                    ) {
+                        val filterTypes = listOf(FilterType.TODAY, FilterType.THREE_DAYS, FilterType.SEVEN_DAYS, FilterType.CUSTOM)
+                        filterTypes.forEach { filter ->
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text = when (filter) {
+                                            FilterType.TODAY -> "Today"
+                                            FilterType.THREE_DAYS -> "3 Days"
+                                            FilterType.SEVEN_DAYS -> "7 Days"
+                                            FilterType.CUSTOM -> "Custom"
+                                        }
+                                    )
+                                },
+                                onClick = {
+                                    showFilterMenu = false
+                                    if (filter == FilterType.CUSTOM) {
+                                        showCustomDateRangePicker = true
+                                    } else {
+                                        homeViewModel.setFilter(filter)
+                                    }
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // Recent History Card
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text("Recent History", style = MaterialTheme.typography.titleMedium, modifier = Modifier.align(Alignment.CenterHorizontally))
+                Spacer(modifier = Modifier.height(8.dp))
+                if (uiState.recentHistoryItems.isEmpty()) {
+                    Text("Your recent logs will appear here.", modifier = Modifier.align(Alignment.CenterHorizontally).padding(16.dp))
+                } else {
+                    uiState.recentHistoryItems.forEach { item ->
+                        when (item) {
+                            is BloodSugarRecord -> RecordItem(record = item, onDelete = { homeViewModel.deleteRecord(item) })
+                            is EventRecord -> EventHistoryItem(event = item, onDelete = { homeViewModel.deleteEvent(item) })
+                            is ActivityRecord -> ActivityHistoryItem(activity = item, onDelete = { homeViewModel.deleteActivity(item) })
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = { navController.navigate("history") },
+                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                    ) {
+                        Text("View All History")
+                    }
+                }
+            }
+        }
+    }
+}

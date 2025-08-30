@@ -5,7 +5,6 @@ import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -54,14 +53,15 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.bloodsugar.notifications.PersistentNotificationService
-import com.example.bloodsugar.ui.screens.CalculatorScreen
-import com.example.bloodsugar.ui.screens.FoodScreen
-import com.example.bloodsugar.ui.screens.HomeScreen
-import com.example.bloodsugar.ui.screens.NotificationsScreen
-import com.example.bloodsugar.ui.screens.SettingsScreen
+import com.example.bloodsugar.features.analysis.AnalysisScreen
+import com.example.bloodsugar.features.calculator.CalculatorScreen
+import com.example.bloodsugar.features.food.FoodScreen
+import com.example.bloodsugar.features.home.HomeScreen
+import com.example.bloodsugar.features.notifications.NotificationsScreen
+import com.example.bloodsugar.features.settings.SettingsScreen
+import com.example.bloodsugar.features.history.HistoryScreen
 import com.example.bloodsugar.ui.theme.BloodSugarTheme
-import com.example.bloodsugar.viewmodel.HomeViewModel
-import com.example.bloodsugar.viewmodel.SharedViewModel
+import com.example.bloodsugar.features.home.HomeViewModel
 
 val bottomBarItems = listOf(
     Screen.Home,
@@ -70,9 +70,7 @@ val bottomBarItems = listOf(
 )
 
 class MainActivity : ComponentActivity() {
-    
-    private val sharedViewModel: SharedViewModel by viewModels()
-    
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val intent = Intent(this, PersistentNotificationService::class.java)
@@ -229,9 +227,9 @@ fun MainScreen() {
                 composable(Screen.Food.route) { FoodScreen() }
                 composable(Screen.Notifications.route) { NotificationsScreen() }
                 composable(Screen.Calculator.route) { CalculatorScreen(navController = navController, homeViewModel = homeViewModel) }
-                composable(Screen.Analysis.route) { com.example.bloodsugar.ui.screens.AnalysisScreen() }
+                composable(Screen.Analysis.route) { AnalysisScreen() }
                 composable("settings") { SettingsScreen(navController) }
-                composable("history") { com.example.bloodsugar.ui.screens.HistoryScreen(navController = navController, homeViewModel = homeViewModel) }
+                composable("history") { HistoryScreen(navController = navController, homeViewModel = homeViewModel) }
             }
         }
     }

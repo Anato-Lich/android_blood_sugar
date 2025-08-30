@@ -1,4 +1,4 @@
-package com.example.bloodsugar.ui.screens
+package com.example.bloodsugar.features.analysis
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
@@ -10,13 +10,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.bloodsugar.viewmodel.AnalysisViewModel
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.background
 
 @Composable
 fun AnalysisScreen(analysisViewModel: AnalysisViewModel = viewModel()) {
-    println("Composing AnalysisScreen")
     val uiState by analysisViewModel.uiState.collectAsState()
 
     Column(
@@ -45,7 +43,7 @@ fun AnalysisScreen(analysisViewModel: AnalysisViewModel = viewModel()) {
 }
 
 @Composable
-fun TirCard(uiState: com.example.bloodsugar.viewmodel.AnalysisUiState) {
+fun TirCard(uiState: AnalysisUiState) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("Distribution", style = MaterialTheme.typography.titleMedium, modifier = Modifier.align(Alignment.CenterHorizontally))

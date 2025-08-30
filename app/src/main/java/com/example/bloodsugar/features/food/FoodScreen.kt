@@ -1,6 +1,5 @@
-package com.example.bloodsugar.ui.screens
+package com.example.bloodsugar.features.food
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -37,10 +36,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.bloodsugar.database.FoodItem
-import com.example.bloodsugar.viewmodel.FoodViewModel
 
 @Composable
 fun FoodScreen(foodViewModel: FoodViewModel = viewModel()) {

@@ -1,4 +1,4 @@
-package com.example.bloodsugar.viewmodel
+package com.example.bloodsugar.features.settings
 
 import android.app.Application
 import android.content.Context
@@ -7,6 +7,7 @@ import android.net.Uri
 import androidx.core.content.FileProvider
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.bloodsugar.data.BloodSugarRepository
 import com.example.bloodsugar.data.SettingsDataStore
 import com.example.bloodsugar.database.AppDatabase
 import kotlinx.coroutines.channels.Channel
@@ -34,10 +35,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     private val settingsDataStore = SettingsDataStore(application)
     private val workManager = androidx.work.WorkManager.getInstance(application)
-    private val db = AppDatabase.getDatabase(application)
-    private val bloodSugarDao = db.bloodSugarDao()
-    private val eventDao = db.eventDao()
-    private val activityDao = db.activityDao()
+    private val repository: BloodSugarRepository
 
     private val _exportChannel = Channel<String>()
     val exportChannel = _exportChannel.receiveAsFlow()
@@ -49,6 +47,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
 
     init {
+        val db = AppDatabase.getDatabase(application)
+        repository = BloodSugarRepository(db)
+
         viewModelScope.launch {
             combine(
                 settingsDataStore.breakfastCoefficient,
@@ -155,9 +156,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     }
 
     private suspend fun generateAndSavePdf(context: Context): Uri? {
-        val bloodSugarRecords = bloodSugarDao.getAllRecordsList()
-        val eventRecords = eventDao.getAllEventsList()
-        val activityRecords = activityDao.getAllActivitiesList()
+        val bloodSugarRecords = repository.getAllRecordsList()
+        val eventRecords = repository.getAllEventsList()
+        val activityRecords = repository.getAllActivitiesList()
 
         val allRecords = (bloodSugarRecords.map { it as Any } + eventRecords.map { it as Any } + activityRecords.map { it as Any }).sortedByDescending {
             when (it) {
@@ -236,9 +237,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     }
 
     private suspend fun generateCsvContent(): String {
-        val bloodSugarRecords = bloodSugarDao.getAllRecordsList()
-        val eventRecords = eventDao.getAllEventsList()
-        val activityRecords = activityDao.getAllActivitiesList()
+        val bloodSugarRecords = repository.getAllRecordsList()
+        val eventRecords = repository.getAllEventsList()
+        val activityRecords = repository.getAllActivitiesList()
 
         val allRecords = (bloodSugarRecords.map { it as Any } + eventRecords.map { it as Any } + activityRecords.map { it as Any }).sortedByDescending {
             when (it) {

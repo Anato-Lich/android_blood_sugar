@@ -1,11 +1,14 @@
-package com.example.bloodsugar.viewmodel
+package com.example.bloodsugar.features.calculator
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.bloodsugar.data.BloodSugarRepository
 import com.example.bloodsugar.data.SettingsDataStore
 import com.example.bloodsugar.database.AppDatabase
 import com.example.bloodsugar.database.FoodItem
+import com.example.bloodsugar.domain.MealComponent
+import com.example.bloodsugar.domain.MealType
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -13,15 +16,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.UUID
-
-data class MealComponent(
-    val id: String = UUID.randomUUID().toString(),
-    val name: String,
-    val servingValue: String,
-    val useGrams: Boolean,
-    val carbs: Float,
-    val foodItemId: Long? = null
-)
 
 data class CalculatorUiState(
     // Insulin from Carbs Tab
@@ -52,14 +46,17 @@ data class CalculatorUiState(
 class CalculatorViewModel(application: Application) : AndroidViewModel(application) {
 
     private val settingsDataStore = SettingsDataStore(application)
-    private val foodDao = AppDatabase.getDatabase(application).foodDao()
+    private val repository: BloodSugarRepository
 
     private val _uiState = MutableStateFlow(CalculatorUiState())
     val uiState: StateFlow<CalculatorUiState> = _uiState.asStateFlow()
 
     init {
+        val db = AppDatabase.getDatabase(application)
+        repository = BloodSugarRepository(db)
+
         viewModelScope.launch {
-            foodDao.getAllFoodItems().collect { items ->
+            repository.getAllFoodItems().collect { items ->
                 _uiState.update { it.copy(foodItems = items) }
             }
         }

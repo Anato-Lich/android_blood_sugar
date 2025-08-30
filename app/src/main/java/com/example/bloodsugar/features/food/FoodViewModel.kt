@@ -1,8 +1,9 @@
-package com.example.bloodsugar.viewmodel
+package com.example.bloodsugar.features.food
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.bloodsugar.data.BloodSugarRepository
 import com.example.bloodsugar.database.AppDatabase
 import com.example.bloodsugar.database.FoodItem
 import kotlinx.coroutines.flow.SharingStarted
@@ -11,9 +12,14 @@ import kotlinx.coroutines.launch
 
 class FoodViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val foodDao = AppDatabase.getDatabase(application).foodDao()
+    private val repository: BloodSugarRepository
 
-    val foodItems = foodDao.getAllFoodItems()
+    init {
+        val db = AppDatabase.getDatabase(application)
+        repository = BloodSugarRepository(db)
+    }
+
+    val foodItems = repository.getAllFoodItems()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun addOrUpdateFoodItem(
@@ -42,16 +48,16 @@ class FoodViewModel(application: Application) : AndroidViewModel(application) {
 
         viewModelScope.launch {
             if (id == 0L) {
-                foodDao.insert(foodItem)
+                repository.insertFoodItem(foodItem)
             } else {
-                foodDao.update(foodItem)
+                repository.updateFoodItem(foodItem)
             }
         }
     }
 
     fun deleteFoodItem(foodItem: FoodItem) {
         viewModelScope.launch {
-            foodDao.delete(foodItem)
+            repository.deleteFoodItem(foodItem)
         }
     }
 }

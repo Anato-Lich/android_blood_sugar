@@ -1,4 +1,4 @@
-package com.example.bloodsugar.ui.screens
+package com.example.bloodsugar.features.history
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -180,7 +180,7 @@ fun EventHistoryItem(
                         )
                         if (event.foodServing != null) {
                             Text(
-                                text = event.foodServing!!,
+                                text = event.foodServing,
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )

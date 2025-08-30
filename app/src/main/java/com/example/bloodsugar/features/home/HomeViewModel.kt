@@ -1,17 +1,19 @@
-package com.example.bloodsugar.viewmodel
+package com.example.bloodsugar.features.home
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.workDataOf
-import androidx.lifecycle.viewModelScope
+import com.example.bloodsugar.data.BloodSugarRepository
 import com.example.bloodsugar.data.SettingsDataStore
 import com.example.bloodsugar.database.ActivityRecord
 import com.example.bloodsugar.database.AppDatabase
 import com.example.bloodsugar.database.BloodSugarRecord
 import com.example.bloodsugar.database.EventRecord
-import com.example.bloodsugar.database.FoodItem
+import com.example.bloodsugar.domain.ChartData
+import com.example.bloodsugar.domain.TirCalculationUseCase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,69 +28,27 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
 import java.util.Calendar
-import java.util.Date
-import java.util.Locale
 import java.util.concurrent.TimeUnit
 import kotlin.math.max
 
-enum class FilterType {
-    TODAY,
-    THREE_DAYS,
-    SEVEN_DAYS,
-    CUSTOM
-}
 
-enum class DialogType {
-    SUGAR,
-    EVENT,
-    ACTIVITY
-}
-
-data class HomeUiState(
-    val sugarValue: String = "",
-    val comment: String = "",
-    val insulinValue: String = "",
-    val carbsValue: String = "",
-    val records: List<BloodSugarRecord> = emptyList(),
-    val events: List<EventRecord> = emptyList(),
-    val activities: List<ActivityRecord> = emptyList(),
-    val historyItems: List<Any> = emptyList(),
-    val recentHistoryItems: List<Any> = emptyList(),
-    val chartData: ChartData? = null,
-    val selectedFilter: FilterType = FilterType.TODAY,
-    val customStartDate: Long? = null,
-    val customEndDate: Long? = null,
-    val shownDialog: DialogType? = null,
-    val selectedRecord: BloodSugarRecord? = null,
-    val activityType: String = "Walking",
-    val activityDuration: String = "",
-    val activityIntensity: String = "Medium",
-    val estimatedA1c: String = "N/A",
-    val todaysCarbs: Float = 0f,
-    val dailyCarbsGoal: Float = 200f,
-    val foodItems: List<FoodItem> = emptyList(),
-    val timeInRange: Float = 0f,
-    val timeAboveRange: Float = 0f,
-    val timeBelowRange: Float = 0f
-)
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val db = AppDatabase.getDatabase(application)
+    private val repository: BloodSugarRepository
     private val settingsDataStore = SettingsDataStore(application)
-    private val bloodSugarDao = db.bloodSugarDao()
-    private val eventDao = db.eventDao()
-    private val activityDao = db.activityDao()
-    private val foodDao = db.foodDao()
     private val workManager = androidx.work.WorkManager.getInstance(application)
+    private val tirCalculationUseCase = TirCalculationUseCase()
 
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
     init {
+        val db = AppDatabase.getDatabase(application)
+        repository = BloodSugarRepository(db)
+
         _uiState.map { it.selectedFilter to (it.customStartDate to it.customEndDate) }.distinctUntilChanged().flatMapLatest { (filter, dates) ->
             val (start, end) = when (filter) {
                 FilterType.TODAY -> getTodayRange()
@@ -97,14 +57,12 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 FilterType.CUSTOM -> dates.first to dates.second
             }
             if (start != null && end != null) {
-                combine(bloodSugarDao.getRecordsInRange(start, end), eventDao.getEventsInRange(start, end), activityDao.getActivitiesInRange(start, end)) { records, events, activities ->
-                    Triple(records, events, activities)
-                }
+                repository.getCombinedDataInRange(start, end)
             } else {
                 combine(
-                    bloodSugarDao.getAllRecords(),
-                    eventDao.getEventsInRange(0, Long.MAX_VALUE),
-                    activityDao.getActivitiesInRange(0, Long.MAX_VALUE)
+                    repository.getAllRecords(),
+                    repository.getEventsInRange(0, Long.MAX_VALUE),
+                    repository.getActivitiesInRange(0, Long.MAX_VALUE)
                 ) { records, events, activities ->
                     Triple(records, events, activities)
                 }
@@ -113,7 +71,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             processRecordsForUi(records, events, activities)
         }.launchIn(viewModelScope)
 
-        bloodSugarDao.getAverageBloodSugar(since = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(90))
+        repository.getAverageBloodSugar(since = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(90))
             .onEach { avgSugar ->
                 if (avgSugar != null && avgSugar > 0) {
                     val eAgMgDl = avgSugar * 18.0182f
@@ -125,7 +83,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             }.launchIn(viewModelScope)
 
         val (start, end) = getTodayRange()
-        combine(settingsDataStore.dailyCarbsGoal, eventDao.getCarbsSumForDay(start, end)) { goal, carbs ->
+        combine(settingsDataStore.dailyCarbsGoal, repository.getCarbsSumForDay(start, end)) { goal, carbs ->
             _uiState.update {
                 it.copy(
                     dailyCarbsGoal = goal,
@@ -134,7 +92,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             }
         }.launchIn(viewModelScope)
 
-        foodDao.getAllFoodItems().onEach { foodList ->
+        repository.getAllFoodItems().onEach { foodList ->
             _uiState.update { it.copy(foodItems = foodList) }
         }.launchIn(viewModelScope)
     }
@@ -194,47 +152,19 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             }
 
             val recentHistory = combinedList.take(5)
-            calculateTir(records)
+            val tirResult = tirCalculationUseCase(records)
 
-            _uiState.update { it.copy(records = records, events = events, activities = activities, chartData = chartData, historyItems = combinedList, recentHistoryItems = recentHistory) }
-        }
-    }
-
-    private fun calculateTir(records: List<BloodSugarRecord>) {
-        val sortedRecords = records.sortedByDescending { it.timestamp }
-        if (sortedRecords.size < 2) {
-            _uiState.update { it.copy(timeInRange = 0f, timeAboveRange = 0f, timeBelowRange = 0f) }
-            return
-        }
-
-        var durationLow = 0L
-        var durationInRange = 0L
-        var durationHigh = 0L
-
-        for (i in 0 until sortedRecords.size - 1) {
-            val currentRecord = sortedRecords[i]
-            val nextRecord = sortedRecords[i+1]
-            val duration = currentRecord.timestamp - nextRecord.timestamp
-
-            val avgValue = (currentRecord.value + nextRecord.value) / 2f
-
-            when {
-                avgValue < 4.0f -> durationLow += duration
-                avgValue <= 10.0f -> durationInRange += duration
-                else -> durationHigh += duration
-            }
-        }
-
-        val totalDuration = sortedRecords.first().timestamp - sortedRecords.last().timestamp
-        if (totalDuration > 0) {
-            val totalDurationFloat = totalDuration.toFloat()
             _uiState.update { it.copy(
-                timeInRange = (durationInRange / totalDurationFloat) * 100,
-                timeAboveRange = (durationHigh / totalDurationFloat) * 100,
-                timeBelowRange = (durationLow / totalDurationFloat) * 100
+                records = records, 
+                events = events, 
+                activities = activities, 
+                chartData = chartData, 
+                historyItems = combinedList, 
+                recentHistoryItems = recentHistory,
+                timeInRange = tirResult.timeInRange,
+                timeAboveRange = tirResult.totalAboveRange,
+                timeBelowRange = tirResult.totalBelowRange
             ) }
-        } else {
-            _uiState.update { it.copy(timeInRange = 0f, timeAboveRange = 0f, timeBelowRange = 0f) }
         }
     }
 
@@ -303,10 +233,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             val carbs = _uiState.value.carbsValue.replace(',', '.').toFloatOrNull()
 
             if (insulin != null) {
-                eventDao.insert(EventRecord(timestamp = timestamp, type = "INSULIN", value = insulin))
+                repository.insertEvent(EventRecord(timestamp = timestamp, type = "INSULIN", value = insulin))
             }
             if (carbs != null) {
-                eventDao.insert(EventRecord(timestamp = timestamp, type = "CARBS", value = carbs))
+                repository.insertEvent(EventRecord(timestamp = timestamp, type = "CARBS", value = carbs))
                 schedulePostMealNotification(carbs)
             }
             _uiState.update { it.copy(insulinValue = "", carbsValue = "") }
@@ -317,10 +247,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val timestamp = System.currentTimeMillis()
             if (insulin != null && insulin > 0) {
-                eventDao.insert(EventRecord(timestamp = timestamp, type = "INSULIN", value = insulin))
+                repository.insertEvent(EventRecord(timestamp = timestamp, type = "INSULIN", value = insulin))
             }
             if (carbs > 0) {
-                eventDao.insert(EventRecord(
+                repository.insertEvent(EventRecord(
                     timestamp = timestamp,
                     type = "CARBS",
                     value = carbs,
@@ -341,20 +271,20 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 value = value,
                 comment = comment
             )
-            bloodSugarDao.insert(record)
+            repository.insertRecord(record)
             _uiState.update { it.copy(sugarValue = "", comment = "") }
         }
     }
 
     fun deleteRecord(record: BloodSugarRecord) {
         viewModelScope.launch {
-            bloodSugarDao.delete(record)
+            repository.deleteRecord(record)
         }
     }
 
     fun deleteEvent(event: EventRecord) {
         viewModelScope.launch {
-            eventDao.delete(event)
+            repository.deleteEvent(event)
         }
     }
 
@@ -403,14 +333,14 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 durationMinutes = duration,
                 intensity = _uiState.value.activityIntensity
             )
-            activityDao.insert(activity)
+            repository.insertActivity(activity)
             _uiState.update { it.copy(activityDuration = "") }
         }
     }
 
     fun deleteActivity(activity: ActivityRecord) {
         viewModelScope.launch {
-            activityDao.delete(activity)
+            repository.deleteActivity(activity)
         }
     }
 

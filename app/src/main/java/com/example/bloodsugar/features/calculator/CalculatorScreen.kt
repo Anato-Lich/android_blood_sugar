@@ -1,4 +1,4 @@
-package com.example.bloodsugar.ui.screens
+package com.example.bloodsugar.features.calculator
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -24,9 +24,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.RestaurantMenu
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -46,6 +44,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -60,11 +59,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.bloodsugar.Screen
 import com.example.bloodsugar.database.FoodItem
-import com.example.bloodsugar.viewmodel.CalculatorUiState
-import com.example.bloodsugar.viewmodel.CalculatorViewModel
-import com.example.bloodsugar.viewmodel.HomeViewModel
-import com.example.bloodsugar.viewmodel.MealComponent
-import com.example.bloodsugar.viewmodel.MealType
+import com.example.bloodsugar.features.home.HomeViewModel
+import com.example.bloodsugar.domain.MealComponent
+import com.example.bloodsugar.domain.MealType
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -75,7 +72,7 @@ fun CalculatorScreen(
 ) {
     val uiState by calculatorViewModel.uiState.collectAsState()
 
-    var selectedTabIndex by remember { mutableStateOf(0) }
+    var selectedTabIndex by remember { mutableIntStateOf(0) }
     val tabs = listOf("Insulin from Carbs", "Carbs from Insulin", "Remaining Carbs")
 
     Column(modifier = Modifier.fillMaxSize()) {

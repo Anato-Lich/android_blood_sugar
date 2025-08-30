@@ -1,4 +1,4 @@
-package com.example.bloodsugar.viewmodel
+package com.example.bloodsugar.features.notifications
 
 import android.app.Application
 import android.util.Log
@@ -84,7 +84,7 @@ class NotificationsViewModel(application: Application) : AndroidViewModel(applic
                             }
                             "interval" -> {
                                 if (setting.startTime != null && setting.endTime != null) {
-                                    val nextExecutionTime = calculateNextIntervalTimestamp(setting.intervalMinutes, setting.startTime!!, setting.endTime!!)
+                                    val nextExecutionTime = calculateNextIntervalTimestamp(setting.intervalMinutes, setting.startTime, setting.endTime)
                                     if (nextExecutionTime != -1L) {
                                         (nextExecutionTime - System.currentTimeMillis()).coerceAtLeast(0)
                                     } else {

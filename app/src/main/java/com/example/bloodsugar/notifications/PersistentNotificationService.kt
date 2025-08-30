@@ -12,8 +12,8 @@ import android.widget.RemoteViews
 import androidx.core.app.NotificationCompat
 import com.example.bloodsugar.MainActivity
 import com.example.bloodsugar.R
+import com.example.bloodsugar.data.BloodSugarRepository
 import com.example.bloodsugar.database.AppDatabase
-import com.example.bloodsugar.database.BloodSugarDao
 import com.example.bloodsugar.database.NotificationSetting
 import com.example.bloodsugar.database.NotificationSettingDao
 import kotlinx.coroutines.CoroutineScope
@@ -43,12 +43,12 @@ class PersistentNotificationService : Service() {
         getSystemService(NOTIFICATION_SERVICE) as NotificationManager
     }
 
-    private val notificationSettingDao: NotificationSettingDao by lazy {
-        AppDatabase.getDatabase(this).notificationSettingDao()
+    private val repository: BloodSugarRepository by lazy {
+        BloodSugarRepository(AppDatabase.getDatabase(this))
     }
 
-    private val bloodSugarRecordDao: BloodSugarDao by lazy {
-        AppDatabase.getDatabase(this).bloodSugarDao()
+    private val notificationSettingDao: NotificationSettingDao by lazy {
+        AppDatabase.getDatabase(this).notificationSettingDao()
     }
 
     private fun tickerFlow(period: Long, initialDelay: Long = 0L) = flow {
@@ -67,7 +67,7 @@ class PersistentNotificationService : Service() {
             val dailyRecordsFlow = tickerFlow(TimeUnit.MINUTES.toMillis(1)).flatMapLatest {
                 val endTime = System.currentTimeMillis()
                 val startTime = endTime - TimeUnit.HOURS.toMillis(24)
-                bloodSugarRecordDao.getRecordsInRange(startTime, endTime)
+                repository.getRecordsInRange(startTime, endTime)
             }
 
             combine(
@@ -102,7 +102,7 @@ class PersistentNotificationService : Service() {
         val (startHour, startMinute) = startTimeStr.split(":").map { it.toInt() }
 
         // 1. Find an "anchor" time. This is the most recent startTime.
-        var anchor = Calendar.getInstance().apply {
+        val anchor = Calendar.getInstance().apply {
             set(Calendar.HOUR_OF_DAY, startHour)
             set(Calendar.MINUTE, startMinute)
             set(Calendar.SECOND, 0)
@@ -113,7 +113,7 @@ class PersistentNotificationService : Service() {
         }
 
         // 2. Start generating ticks from the anchor and find the first one after `now`.
-        var nextTrigger = anchor.clone() as Calendar
+        val nextTrigger = anchor.clone() as Calendar
         while (nextTrigger.timeInMillis <= now.timeInMillis) {
             nextTrigger.add(Calendar.MINUTE, intervalMinutes)
         }
@@ -167,7 +167,7 @@ class PersistentNotificationService : Service() {
             }
             "interval" -> {
                 if (setting.startTime == null || setting.endTime == null) return Long.MAX_VALUE
-                calculateNextIntervalTimestamp(setting.intervalMinutes, setting.startTime!!, setting.endTime!!)
+                calculateNextIntervalTimestamp(setting.intervalMinutes, setting.startTime, setting.endTime)
             }
             else -> Long.MAX_VALUE
         }

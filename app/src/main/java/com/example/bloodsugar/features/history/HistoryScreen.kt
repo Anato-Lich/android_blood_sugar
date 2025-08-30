@@ -1,4 +1,4 @@
-package com.example.bloodsugar.ui.screens
+package com.example.bloodsugar.features.history
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
@@ -24,7 +24,7 @@ import androidx.navigation.NavController
 import com.example.bloodsugar.database.ActivityRecord
 import com.example.bloodsugar.database.BloodSugarRecord
 import com.example.bloodsugar.database.EventRecord
-import com.example.bloodsugar.viewmodel.HomeViewModel
+import com.example.bloodsugar.features.home.HomeViewModel
 import androidx.compose.foundation.layout.Column
 import androidx.compose.ui.Alignment
 import androidx.compose.material3.MaterialTheme
