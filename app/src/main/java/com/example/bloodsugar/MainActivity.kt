@@ -228,7 +228,7 @@ fun MainScreen() {
                 composable(Screen.Notifications.route) { NotificationsScreen() }
                 composable(Screen.Calculator.route) { CalculatorScreen(navController = navController, homeViewModel = homeViewModel) }
                 composable(Screen.Analysis.route) { AnalysisScreen() }
-                composable("settings") { SettingsScreen(navController) }
+                composable("settings") { SettingsScreen() }
                 composable("history") { HistoryScreen(navController = navController, homeViewModel = homeViewModel) }
             }
         }
