@@ -13,9 +13,13 @@ import androidx.core.app.NotificationCompat
 import com.example.bloodsugar.MainActivity
 import com.example.bloodsugar.R
 import com.example.bloodsugar.data.BloodSugarRepository
+import com.example.bloodsugar.data.SettingsDataStore
 import com.example.bloodsugar.database.AppDatabase
 import com.example.bloodsugar.database.NotificationSetting
 import com.example.bloodsugar.database.NotificationSettingDao
+import com.example.bloodsugar.domain.TirThresholds
+import com.example.bloodsugar.domain.SugarLevelCategory
+import com.example.bloodsugar.domain.getSugarLevelCategory
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -25,6 +29,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
@@ -51,6 +56,10 @@ class PersistentNotificationService : Service() {
         AppDatabase.getDatabase(this).notificationSettingDao()
     }
 
+    private val settingsDataStore: SettingsDataStore by lazy {
+        SettingsDataStore(this)
+    }
+
     private fun tickerFlow(period: Long, initialDelay: Long = 0L) = flow {
         delay(initialDelay)
         while (true) {
@@ -64,24 +73,48 @@ class PersistentNotificationService : Service() {
         startForeground(1, createNotification(null, null, null, null, null).build())
 
         scope.launch {
-            val dailyRecordsFlow = tickerFlow(TimeUnit.MINUTES.toMillis(1)).flatMapLatest {
+            val dataFlow = tickerFlow(TimeUnit.MINUTES.toMillis(1)).flatMapLatest {
                 val endTime = System.currentTimeMillis()
                 val startTime = endTime - TimeUnit.HOURS.toMillis(24)
-                repository.getRecordsInRange(startTime, endTime)
+                repository.getCombinedDataInRange(startTime, endTime)
             }
 
             combine(
                 notificationSettingDao.getEnabledNotifications(),
-                dailyRecordsFlow
-            ) { notifications, dailyRecords ->
-                val closestNotifications = getClosestNotifications(notifications)
+                dataFlow,
+                settingsDataStore.postMealNotificationEnabled,
+                settingsDataStore.postMealNotificationDelay
+            ) { notifications, combinedData, postMealEnabled, postMealDelay ->
+
+                val (dailyRecords, dailyEvents, _) = combinedData
+
+                val nextScheduledReminder = getClosestNotifications(notifications).firstOrNull()
+                val nextScheduledReminderTime = nextScheduledReminder?.let { getNextExecutionTime(it) }
+
+                val lastCarbEvent = dailyEvents.filter { it.type == "CARBS" }.maxByOrNull { it.timestamp }
+                var postMealCheckTime: Long? = null
+                if (lastCarbEvent != null && postMealEnabled) {
+                    val checkTime = lastCarbEvent.timestamp + TimeUnit.MINUTES.toMillis(postMealDelay.toLong())
+                    if (checkTime > System.currentTimeMillis()) {
+                        postMealCheckTime = checkTime
+                    }
+                }
+
+                var nextNotificationText: String? = null
+                if (postMealCheckTime != null && (nextScheduledReminderTime == null || postMealCheckTime < nextScheduledReminderTime)) {
+                    val remainingMinutes = TimeUnit.MILLISECONDS.toMinutes(postMealCheckTime - System.currentTimeMillis())
+                    nextNotificationText = "Check sugar in ${remainingMinutes + 1} min"
+                } else if (nextScheduledReminderTime != null) {
+                    val formattedTime = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(nextScheduledReminderTime))
+                    nextNotificationText = "Next: ${nextScheduledReminder.message} at $formattedTime"
+                }
 
                 val dailyAverage = dailyRecords.map { it.value }.average().toFloat().takeIf { !it.isNaN() }
                 val lastValue = dailyRecords.maxByOrNull { it.timestamp }?.value
                 val minValue = dailyRecords.minOfOrNull { it.value }
                 val maxValue = dailyRecords.maxOfOrNull { it.value }
 
-                notificationManager.notify(1, createNotification(closestNotifications, dailyAverage, lastValue, minValue, maxValue).build())
+                notificationManager.notify(1, createNotification(nextNotificationText, dailyAverage, lastValue, minValue, maxValue).build())
             }.debounce(500L).collect()
         }
 
@@ -177,15 +210,15 @@ class PersistentNotificationService : Service() {
         if (value == null) {
             return android.graphics.Color.BLACK
         }
-        return when {
-            value < 4f -> 0xFF2196F3.toInt() // SecondaryBlue
-            value <= 10f -> 0xFF4CAF50.toInt() // PrimaryGreen
-            else -> 0xFFD32F2F.toInt() // ErrorRed
+        return when (getSugarLevelCategory(value)) {
+            SugarLevelCategory.LOW -> 0xFF2196F3.toInt() // SecondaryBlue
+            SugarLevelCategory.IN_RANGE -> 0xFF4CAF50.toInt() // PrimaryGreen
+            SugarLevelCategory.HIGH -> 0xFFD32F2F.toInt() // ErrorRed
         }
     }
 
     private fun createNotification(
-        closestNotifications: List<NotificationSetting>?,
+        nextNotificationText: String?,
         dailyAverage: Float?,
         lastValue: Float?,
         minValue: Float?,
@@ -207,15 +240,7 @@ class PersistentNotificationService : Service() {
         // Create RemoteViews
         val remoteViews = RemoteViews(packageName, R.layout.notification_persistent)
 
-        val nextReminderText = if (!closestNotifications.isNullOrEmpty()) {
-            val nextTime = getNextExecutionTime(closestNotifications.first())
-            val formattedTime = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(nextTime))
-            val reminderMessages = closestNotifications.joinToString { it.message }
-            "Next: $reminderMessages at $formattedTime"
-        } else {
-            "No reminders set."
-        }
-        remoteViews.setTextViewText(R.id.notification_text, nextReminderText)
+        remoteViews.setTextViewText(R.id.notification_text, nextNotificationText ?: "No reminders set.")
 
         if (dailyAverage != null) {
             remoteViews.setTextViewText(R.id.notification_average, "%.1f".format(dailyAverage))

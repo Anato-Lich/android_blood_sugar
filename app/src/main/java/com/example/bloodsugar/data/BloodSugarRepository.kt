@@ -3,6 +3,7 @@ package com.example.bloodsugar.data
 import com.example.bloodsugar.database.ActivityRecord
 import com.example.bloodsugar.database.AppDatabase
 import com.example.bloodsugar.database.BloodSugarRecord
+import com.example.bloodsugar.database.DailyInsulinDose
 import com.example.bloodsugar.database.EventRecord
 import com.example.bloodsugar.database.FoodItem
 import kotlinx.coroutines.flow.Flow
@@ -25,6 +26,10 @@ class BloodSugarRepository(db: AppDatabase) {
 
     fun getActivitiesInRange(start: Long, end: Long): Flow<List<ActivityRecord>> {
         return activityDao.getActivitiesInRange(start, end)
+    }
+
+    fun getDailyInsulinDoses(start: Long, end: Long): Flow<List<DailyInsulinDose>> {
+        return eventDao.getDailyInsulinDoses(start, end)
     }
 
     fun getCombinedDataInRange(start: Long, end: Long): Flow<Triple<List<BloodSugarRecord>, List<EventRecord>, List<ActivityRecord>>> {

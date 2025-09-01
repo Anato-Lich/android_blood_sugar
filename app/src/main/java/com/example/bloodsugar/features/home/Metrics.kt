@@ -28,7 +28,7 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun TirBar(uiState: HomeUiState, modifier: Modifier = Modifier) {
-    val total = uiState.timeBelowRange + uiState.timeInRange + uiState.timeAboveRange
+    val total = uiState.veryLow + uiState.low + uiState.timeInRange + uiState.high + uiState.veryHigh
     if (total == 0f) {
         Row(
             modifier = Modifier
@@ -61,12 +61,18 @@ fun TirBar(uiState: HomeUiState, modifier: Modifier = Modifier) {
             Row(
                 modifier = Modifier
                     .padding(vertical = 2.dp, horizontal = 8.dp)
-                    .height(16.dp)
+                    .height(24.dp)
                     .clip(MaterialTheme.shapes.medium)) {
-                if (uiState.timeBelowRange > 0) {
+                if (uiState.veryLow > 0) {
                     Box(
-                        modifier = Modifier.fillMaxHeight().weight(uiState.timeBelowRange)
-                            .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f))
+                        modifier = Modifier.fillMaxHeight().weight(uiState.veryLow)
+                            .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.7f))
+                    )
+                }
+                if (uiState.low > 0) {
+                    Box(
+                        modifier = Modifier.fillMaxHeight().weight(uiState.low)
+                            .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.4f))
                     )
                 }
                 if (uiState.timeInRange > 0) {
@@ -75,22 +81,26 @@ fun TirBar(uiState: HomeUiState, modifier: Modifier = Modifier) {
                             .background(MaterialTheme.colorScheme.primary)
                     )
                 }
-                if (uiState.timeAboveRange > 0) {
+                if (uiState.high > 0) {
                     Box(
-                        modifier = Modifier.fillMaxHeight().weight(uiState.timeAboveRange)
-                            .background(MaterialTheme.colorScheme.error.copy(alpha = 0.5f))
+                        modifier = Modifier.fillMaxHeight().weight(uiState.high)
+                            .background(MaterialTheme.colorScheme.error.copy(alpha = 0.4f))
+                    )
+                }
+                if (uiState.veryHigh > 0) {
+                    Box(
+                        modifier = Modifier.fillMaxHeight().weight(uiState.veryHigh)
+                            .background(MaterialTheme.colorScheme.error.copy(alpha = 0.7f))
                     )
                 }
             }
             Row(
+                modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp)){
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ){
                 Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(4.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
                 ) {
                     Text(
                         "Low",
@@ -104,11 +114,7 @@ fun TirBar(uiState: HomeUiState, modifier: Modifier = Modifier) {
                     )
                 }
                 Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(8.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
                         "Normal",
@@ -122,11 +128,7 @@ fun TirBar(uiState: HomeUiState, modifier: Modifier = Modifier) {
                     )
                 }
                 Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(8.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
                         "High",
@@ -240,6 +242,41 @@ fun CarbsProgressMetric(consumed: Float, goal: Float, modifier: Modifier = Modif
             ) {
                 Text("Daily Carb Goal", style = MaterialTheme.typography.titleMedium)
                 Text("Goal: ${goal.toInt()}g", style = MaterialTheme.typography.bodyMedium)
+            }
+        }
+    }
+}
+
+@Composable
+fun AvgDailyInsulinMetric(value: Float?, modifier: Modifier = Modifier) {
+    Card(
+        modifier = modifier.fillMaxHeight(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize().padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text("Avg. Daily Insulin", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(modifier = Modifier.height(8.dp))
+            if (value != null) {
+                Text(
+                    text = "%.1f u".format(value),
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = "last 7 days",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            } else {
+                Text(
+                    text = "N/A",
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }

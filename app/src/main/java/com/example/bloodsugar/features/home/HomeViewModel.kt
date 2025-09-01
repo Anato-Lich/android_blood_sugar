@@ -14,6 +14,7 @@ import com.example.bloodsugar.database.BloodSugarRecord
 import com.example.bloodsugar.database.EventRecord
 import com.example.bloodsugar.domain.ChartData
 import com.example.bloodsugar.domain.TirCalculationUseCase
+import com.example.bloodsugar.domain.TirThresholds
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,7 +29,10 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
 import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 import kotlin.math.max
 
@@ -95,6 +99,16 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         repository.getAllFoodItems().onEach { foodList ->
             _uiState.update { it.copy(foodItems = foodList) }
         }.launchIn(viewModelScope)
+
+        // Calculate average daily insulin for the last 7 days
+        val sevenDaysAgo = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(7)
+        repository.getDailyInsulinDoses(sevenDaysAgo, System.currentTimeMillis()).onEach { doses ->
+            if (doses.isNotEmpty()) {
+                _uiState.update { it.copy(avgDailyInsulin = doses.map { it.total }.average().toFloat()) }
+            } else {
+                _uiState.update { it.copy(avgDailyInsulin = 0f) }
+            }
+        }.launchIn(viewModelScope)
     }
 
     private fun processRecordsForUi(records: List<BloodSugarRecord>, events: List<EventRecord>, activities: List<ActivityRecord>) {
@@ -131,6 +145,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             val min = records.minOfOrNull { it.value } ?: 0f
             val max = records.maxOfOrNull { it.value } ?: 0f
 
+            val trendLine = calculateTrendLine(records)
+
             val chartData = ChartData(
                 records = records.sortedBy { it.timestamp },
                 events = events.sortedBy { it.timestamp },
@@ -139,7 +155,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 min = min,
                 max = max,
                 rangeStart = filterStart,
-                rangeEnd = rangeEnd
+                rangeEnd = rangeEnd,
+                trendLine = trendLine
             )
 
             val combinedList = (records + events + activities).sortedByDescending {
@@ -152,7 +169,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             }
 
             val recentHistory = combinedList.take(5)
-            val tirResult = tirCalculationUseCase(records)
+            val tirResult = tirCalculationUseCase(records, TirThresholds.Default)
 
             _uiState.update { it.copy(
                 records = records, 
@@ -163,7 +180,11 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 recentHistoryItems = recentHistory,
                 timeInRange = tirResult.timeInRange,
                 timeAboveRange = tirResult.totalAboveRange,
-                timeBelowRange = tirResult.totalBelowRange
+                timeBelowRange = tirResult.totalBelowRange,
+                veryLow = tirResult.veryLow,
+                low = tirResult.low,
+                high = tirResult.high,
+                veryHigh = tirResult.veryHigh
             ) }
         }
     }
@@ -173,6 +194,16 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun setCustomDateRange(start: Long, end: Long) {
+        _uiState.update { it.copy(customStartDate = start, customEndDate = end, selectedFilter = FilterType.CUSTOM) }
+    }
+
+    fun setCustomStartDate(start: Long) {
+        val end = _uiState.value.customEndDate ?: System.currentTimeMillis()
+        _uiState.update { it.copy(customStartDate = start, customEndDate = end, selectedFilter = FilterType.CUSTOM) }
+    }
+
+    fun setCustomEndDate(end: Long) {
+        val start = _uiState.value.customStartDate ?: (end - TimeUnit.DAYS.toMillis(7))
         _uiState.update { it.copy(customStartDate = start, customEndDate = end, selectedFilter = FilterType.CUSTOM) }
     }
 
@@ -259,6 +290,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 ))
                 schedulePostMealNotification(carbs)
             }
+            _uiState.update { it.copy(scrollToHistory = true) }
         }
     }
 
@@ -273,6 +305,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             )
             repository.insertRecord(record)
             _uiState.update { it.copy(sugarValue = "", comment = "") }
+            checkTrendAndScheduleNotifications()
         }
     }
 
@@ -308,6 +341,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.update { it.copy(selectedRecord = null) }
     }
 
+    fun onScrollToHistoryHandled() {
+        _uiState.update { it.copy(scrollToHistory = false) }
+    }
+
     fun onLogActivityClicked() {
         _uiState.update { it.copy(shownDialog = DialogType.ACTIVITY) }
     }
@@ -341,6 +378,118 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     fun deleteActivity(activity: ActivityRecord) {
         viewModelScope.launch {
             repository.deleteActivity(activity)
+        }
+    }
+
+    private fun calculateTrendLine(records: List<BloodSugarRecord>): Triple<Float, Float, Long>? {
+        if (records.size < 2) return null
+
+        val startTime = records.minOf { it.timestamp }
+
+        val n = records.size
+        val sumX = records.sumOf { (it.timestamp - startTime).toDouble() }
+        val sumY = records.sumOf { it.value.toDouble() }
+        val sumXY = records.sumOf { (it.timestamp - startTime).toDouble() * it.value.toDouble() }
+        val sumX2 = records.sumOf { (it.timestamp - startTime).toDouble() * (it.timestamp - startTime).toDouble() }
+
+        val denominator = (n * sumX2 - sumX * sumX)
+        if (denominator == 0.0) return null
+
+        val slope = (n * sumXY - sumX * sumY) / denominator
+        val intercept = (sumY - slope * sumX) / n
+
+        return Triple(slope.toFloat(), intercept.toFloat(), startTime)
+    }
+
+    private fun checkTrendAndScheduleNotifications() {
+        viewModelScope.launch {
+            val trendEnabled = settingsDataStore.trendNotificationEnabled.first()
+            if (!trendEnabled) {
+                workManager.cancelUniqueWork("trend-notification-low")
+                workManager.cancelUniqueWork("trend-notification-high")
+                return@launch
+            }
+
+            val lowThreshold = settingsDataStore.trendNotificationLowThreshold.first()
+            val highThreshold = settingsDataStore.trendNotificationHighThreshold.first()
+
+            val since = System.currentTimeMillis() - TimeUnit.HOURS.toMillis(3)
+            val recentRecords = repository.getRecordsInRange(since, System.currentTimeMillis()).first()
+
+            if (recentRecords.size < 3) {
+                workManager.cancelUniqueWork("trend-notification-low")
+                workManager.cancelUniqueWork("trend-notification-high")
+                return@launch
+            }
+
+            val trend = calculateTrendLine(recentRecords)
+
+            if (trend == null) {
+                workManager.cancelUniqueWork("trend-notification-low")
+                workManager.cancelUniqueWork("trend-notification-high")
+                return@launch
+            }
+
+            val (slope, intercept) = trend
+
+            // Check for low threshold
+            if (slope < 0) {
+                val crossingTime = (lowThreshold - intercept) / slope
+                if (crossingTime > System.currentTimeMillis()) {
+                    scheduleTrendNotifications("low", lowThreshold, crossingTime.toLong())
+                } else {
+                    workManager.cancelUniqueWork("trend-notification-low")
+                }
+            } else {
+                workManager.cancelUniqueWork("trend-notification-low")
+            }
+
+            // Check for high threshold
+            if (slope > 0) {
+                val crossingTime = (highThreshold - intercept) / slope
+                if (crossingTime > System.currentTimeMillis()) {
+                    scheduleTrendNotifications("high", highThreshold, crossingTime.toLong())
+                } else {
+                    workManager.cancelUniqueWork("trend-notification-high")
+                }
+            } else {
+                workManager.cancelUniqueWork("trend-notification-high")
+            }
+        }
+    }
+
+    private fun scheduleTrendNotifications(type: String, threshold: Float, crossingTime: Long) {
+        val uniqueWorkName = "trend-notification-$type"
+        val now = System.currentTimeMillis()
+        val fiveMinutesInMillis = TimeUnit.MINUTES.toMillis(5)
+
+        // Immediate notification
+        val message = "Blood sugar is trending $type. It may reach %.1f at %s.".format(threshold, SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(crossingTime)))
+        val immediateData = workDataOf(
+            "message" to message,
+            "type" to "trend-immediate"
+        )
+        val immediateRequest = OneTimeWorkRequestBuilder<com.example.bloodsugar.notifications.NotificationWorker>()
+            .setInputData(immediateData)
+            .build()
+
+        // Pre-emptive notification
+        val preemptiveTime = crossingTime - fiveMinutesInMillis
+        if (preemptiveTime > now) {
+            val delay = preemptiveTime - now
+            val preemptiveMessage = "Blood sugar may reach %.1f in 5 minutes.".format(threshold)
+            val preemptiveData = workDataOf(
+                "message" to preemptiveMessage,
+                "type" to "trend-preemptive"
+            )
+            val preemptiveRequest = OneTimeWorkRequestBuilder<com.example.bloodsugar.notifications.NotificationWorker>()
+                .setInitialDelay(delay, TimeUnit.MILLISECONDS)
+                .setInputData(preemptiveData)
+                .build()
+
+            workManager.enqueueUniqueWork(uniqueWorkName, ExistingWorkPolicy.REPLACE, listOf(immediateRequest, preemptiveRequest))
+        } else {
+            workManager.enqueueUniqueWork(uniqueWorkName, ExistingWorkPolicy.REPLACE, immediateRequest)
         }
     }
 

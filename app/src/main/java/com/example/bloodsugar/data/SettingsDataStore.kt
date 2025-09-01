@@ -24,6 +24,9 @@ class SettingsDataStore(context: Context) {
         val INSULIN_DOSE_ACCURACY = floatPreferencesKey("insulin_dose_accuracy")
         val POST_MEAL_NOTIFICATION_ENABLED = androidx.datastore.preferences.core.booleanPreferencesKey("post_meal_notification_enabled")
         val POST_MEAL_NOTIFICATION_DELAY = androidx.datastore.preferences.core.intPreferencesKey("post_meal_notification_delay")
+        val TREND_NOTIFICATION_ENABLED = androidx.datastore.preferences.core.booleanPreferencesKey("trend_notification_enabled")
+        val TREND_NOTIFICATION_LOW_THRESHOLD = floatPreferencesKey("trend_notification_low_threshold")
+        val TREND_NOTIFICATION_HIGH_THRESHOLD = floatPreferencesKey("trend_notification_high_threshold")
     }
 
     val breakfastCoefficient: Flow<Float> = dataStore.data.map {
@@ -58,10 +61,23 @@ class SettingsDataStore(context: Context) {
         it[PreferencesKeys.POST_MEAL_NOTIFICATION_DELAY] ?: 120
     }
 
+    val trendNotificationEnabled: Flow<Boolean> = dataStore.data.map {
+        it[PreferencesKeys.TREND_NOTIFICATION_ENABLED] ?: false
+    }
+
+    val trendNotificationLowThreshold: Flow<Float> = dataStore.data.map {
+        it[PreferencesKeys.TREND_NOTIFICATION_LOW_THRESHOLD] ?: 4.0f
+    }
+
+    val trendNotificationHighThreshold: Flow<Float> = dataStore.data.map {
+        it[PreferencesKeys.TREND_NOTIFICATION_HIGH_THRESHOLD] ?: 10.0f
+    }
+
     suspend fun saveSettings(
         breakfast: Float, dinner: Float, supper: Float,
         carbsPerBu: Float, dailyCarbsGoal: Float, insulinDoseAccuracy: Float,
-        postMealEnabled: Boolean, postMealDelay: Int
+        postMealEnabled: Boolean, postMealDelay: Int,
+        trendNotificationsEnabled: Boolean, trendLowThreshold: Float, trendHighThreshold: Float
     ) {
         dataStore.edit {
             it[PreferencesKeys.BREAKFAST_COEFFICIENT] = breakfast
@@ -72,6 +88,9 @@ class SettingsDataStore(context: Context) {
             it[PreferencesKeys.INSULIN_DOSE_ACCURACY] = insulinDoseAccuracy
             it[PreferencesKeys.POST_MEAL_NOTIFICATION_ENABLED] = postMealEnabled
             it[PreferencesKeys.POST_MEAL_NOTIFICATION_DELAY] = postMealDelay
+            it[PreferencesKeys.TREND_NOTIFICATION_ENABLED] = trendNotificationsEnabled
+            it[PreferencesKeys.TREND_NOTIFICATION_LOW_THRESHOLD] = trendLowThreshold
+            it[PreferencesKeys.TREND_NOTIFICATION_HIGH_THRESHOLD] = trendHighThreshold
         }
     }
 }

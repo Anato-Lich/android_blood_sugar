@@ -55,8 +55,8 @@ class NotificationWorker(appContext: Context, workerParams: WorkerParameters) : 
                         Log.d(TAG, "Interval notification outside window. Not showing.")
                     }
                 }
-                "post-meal" -> {
-                    Log.d(TAG, "Post-meal notification. Showing notification.")
+                "post-meal", "trend-immediate", "trend-preemptive" -> {
+                    Log.d(TAG, "Post-meal or Trend notification. Showing notification.")
                     showNotification(message, null)
                 }
                 else -> {
@@ -69,7 +69,7 @@ class NotificationWorker(appContext: Context, workerParams: WorkerParameters) : 
                 return Result.success()
             }
 
-            if (type != "post-meal") { // Don't reschedule post-meal notifications
+            if (type == "daily" || type == "interval") { // Only reschedule daily and interval notifications
                 reschedule(type)
             }
 

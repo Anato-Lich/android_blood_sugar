@@ -237,6 +237,47 @@ fun SettingsScreen(settingsViewModel: SettingsViewModel = viewModel()) {
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
+                        "Trend Notifications",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("Enable trend notifications")
+                        Switch(
+                            checked = uiState.trendNotificationEnabled,
+                            onCheckedChange = { settingsViewModel.setTrendNotificationEnabled(it) }
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = uiState.trendNotificationLowThreshold,
+                            onValueChange = { settingsViewModel.setTrendNotificationLowThreshold(it) },
+                            label = { Text("Low Threshold") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            modifier = Modifier.weight(1f),
+                            enabled = uiState.trendNotificationEnabled
+                        )
+                        OutlinedTextField(
+                            value = uiState.trendNotificationHighThreshold,
+                            onValueChange = { settingsViewModel.setTrendNotificationHighThreshold(it) },
+                            label = { Text("High Threshold") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            modifier = Modifier.weight(1f),
+                            enabled = uiState.trendNotificationEnabled
+                        )
+                    }
+                }
+            }
+
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
                         "Export Data",
                         style = MaterialTheme.typography.titleMedium,
                         modifier = Modifier.align(Alignment.CenterHorizontally)

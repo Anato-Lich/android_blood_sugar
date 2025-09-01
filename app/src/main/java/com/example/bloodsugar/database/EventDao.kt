@@ -18,6 +18,9 @@ interface EventDao {
     @Query("SELECT * FROM events WHERE timestamp BETWEEN :startTime AND :endTime ORDER BY timestamp DESC")
     fun getEventsInRange(startTime: Long, endTime: Long): Flow<List<EventRecord>>
 
+    @Query("SELECT SUM(value) as total, strftime('%Y-%m-%d', timestamp / 1000, 'unixepoch') as day FROM events WHERE type = 'INSULIN' AND timestamp BETWEEN :startTime AND :endTime GROUP BY day ORDER BY day ASC")
+    fun getDailyInsulinDoses(startTime: Long, endTime: Long): Flow<List<DailyInsulinDose>>
+
     @Query("SELECT SUM(value) FROM events WHERE type = 'CARBS' AND timestamp BETWEEN :startOfDay AND :endOfDay")
     fun getCarbsSumForDay(startOfDay: Long, endOfDay: Long): Flow<Float?>
 

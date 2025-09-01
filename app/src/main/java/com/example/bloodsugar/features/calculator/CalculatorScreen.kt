@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -42,11 +43,13 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -62,6 +65,8 @@ import com.example.bloodsugar.database.FoodItem
 import com.example.bloodsugar.features.home.HomeViewModel
 import com.example.bloodsugar.domain.MealComponent
 import com.example.bloodsugar.domain.MealType
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -74,6 +79,8 @@ fun CalculatorScreen(
 
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     val tabs = listOf("Insulin from Carbs", "Carbs from Insulin", "Remaining Carbs")
+    val scrollState = rememberScrollState()
+    val scope = rememberCoroutineScope()
 
     Column(modifier = Modifier.fillMaxSize()) {
         TabRow(selectedTabIndex = selectedTabIndex) {
@@ -90,13 +97,13 @@ fun CalculatorScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(16.dp)
-                .verticalScroll(rememberScrollState()),
+                .verticalScroll(scrollState),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             when (selectedTabIndex) {
-                0 -> InsulinFromCarbs(uiState, calculatorViewModel, homeViewModel, navController)
-                1 -> CarbsFromInsulin(uiState, calculatorViewModel)
-                2 -> RemainingCarbs(uiState, calculatorViewModel)
+                0 -> InsulinFromCarbs(uiState, calculatorViewModel, homeViewModel, navController, scrollState, scope)
+                1 -> CarbsFromInsulin(uiState, calculatorViewModel, scrollState, scope)
+                2 -> RemainingCarbs(uiState, calculatorViewModel, scrollState, scope)
             }
         }
     }
@@ -108,11 +115,21 @@ fun InsulinFromCarbs(
     uiState: CalculatorUiState,
     calculatorViewModel: CalculatorViewModel,
     homeViewModel: HomeViewModel,
-    navController: NavController
+    navController: NavController,
+    scrollState: ScrollState,
+    scope: CoroutineScope
 ) {
     var useGrams by remember { mutableStateOf(true) }
     val totalCarbs = uiState.components.sumOf { it.carbs.toDouble() }.toFloat()
     var editingComponent by remember { mutableStateOf<MealComponent?>(null) }
+
+    LaunchedEffect(uiState.insulinDose) {
+        if (uiState.insulinDose != null) {
+            scope.launch {
+                scrollState.animateScrollTo(scrollState.maxValue)
+            }
+        }
+    }
 
     editingComponent?.let {
         EditComponentDialog(
@@ -352,7 +369,15 @@ fun EditComponentDialog(
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun CarbsFromInsulin(uiState: CalculatorUiState, calculatorViewModel: CalculatorViewModel) {
+fun CarbsFromInsulin(uiState: CalculatorUiState, calculatorViewModel: CalculatorViewModel, scrollState: ScrollState, scope: CoroutineScope) {
+    LaunchedEffect(uiState.calculatedCarbs) {
+        if (uiState.calculatedCarbs != null) {
+            scope.launch {
+                scrollState.animateScrollTo(scrollState.maxValue)
+            }
+        }
+    }
+
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Text("Calculate Carbs from Insulin Dose", style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
@@ -393,10 +418,18 @@ fun CarbsFromInsulin(uiState: CalculatorUiState, calculatorViewModel: Calculator
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
-fun RemainingCarbs(uiState: CalculatorUiState, calculatorViewModel: CalculatorViewModel) {
+fun RemainingCarbs(uiState: CalculatorUiState, calculatorViewModel: CalculatorViewModel, scrollState: ScrollState, scope: CoroutineScope) {
     var useGrams by remember { mutableStateOf(true) }
     val totalCarbs = uiState.remainingCarbsComponents.sumOf { it.carbs.toDouble() }.toFloat()
     var editingComponent by remember { mutableStateOf<MealComponent?>(null) }
+
+    LaunchedEffect(uiState.remainingCarbs) {
+        if (uiState.remainingCarbs != null) {
+            scope.launch {
+                scrollState.animateScrollTo(scrollState.maxValue)
+            }
+        }
+    }
 
     editingComponent?.let {
         EditComponentDialog(

@@ -21,7 +21,11 @@ data class TirThresholds(
     val low: Float = 4.0f,
     val high: Float = 10.0f,
     val veryHigh: Float = 13.9f
-)
+) {
+    companion object {
+        val Default = TirThresholds()
+    }
+}
 
 data class ChartData(
     val records: List<BloodSugarRecord>,
@@ -31,7 +35,8 @@ data class ChartData(
     val min: Float,
     val max: Float,
     val rangeStart: Long,
-    val rangeEnd: Long
+    val rangeEnd: Long,
+    val trendLine: Triple<Float, Float, Long>? = null // Slope, Intercept, and StartTime for normalization
 )
 
 enum class MealType {

@@ -44,5 +44,11 @@ data class HomeUiState(
     val foodItems: List<FoodItem> = emptyList(),
     val timeInRange: Float = 0f,
     val timeAboveRange: Float = 0f,
-    val timeBelowRange: Float = 0f
+    val timeBelowRange: Float = 0f,
+    val veryLow: Float = 0f,
+    val low: Float = 0f,
+    val high: Float = 0f,
+    val veryHigh: Float = 0f,
+    val scrollToHistory: Boolean = false,
+    val avgDailyInsulin: Float? = null
 )

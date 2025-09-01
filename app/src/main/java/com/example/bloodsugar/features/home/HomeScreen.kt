@@ -28,23 +28,31 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.bloodsugar.database.ActivityRecord
 import com.example.bloodsugar.database.BloodSugarRecord
 import com.example.bloodsugar.database.EventRecord
-import com.example.bloodsugar.features.history.RecordItem
-import com.example.bloodsugar.features.history.EventHistoryItem
 import com.example.bloodsugar.features.history.ActivityHistoryItem
+import com.example.bloodsugar.features.history.EventHistoryItem
+import com.example.bloodsugar.features.history.RecordItem
+import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @Composable
@@ -53,12 +61,24 @@ fun HomeScreen(
     navController: NavController
 ) {
     val uiState by homeViewModel.uiState.collectAsState()
-    var showCustomDateRangePicker by remember { mutableStateOf(false) }
+    var showStartDateDialog by remember { mutableStateOf(false) }
+    var showEndDateDialog by remember { mutableStateOf(false) }
 
-    var chartZoomLevel by remember { mutableFloatStateOf(1f) }
-    var chartPanOffset by remember { mutableFloatStateOf(0f) }
     var isScrubbing by remember { mutableStateOf(false) }
     var scrubberPosition by remember { mutableFloatStateOf(0f) }
+
+    val scrollState = rememberScrollState()
+    val scope = rememberCoroutineScope()
+    var historyCardPosition by remember { mutableFloatStateOf(0f) }
+
+    LaunchedEffect(uiState.scrollToHistory) {
+        if (uiState.scrollToHistory) {
+            scope.launch {
+                scrollState.animateScrollTo(historyCardPosition.toInt())
+            }
+            homeViewModel.onScrollToHistoryHandled()
+        }
+    }
 
     if (uiState.shownDialog != null) {
         LogInputDialog(
@@ -87,12 +107,22 @@ fun HomeScreen(
         )
     }
 
-    if (showCustomDateRangePicker) {
-        CustomDateRangePicker(
-            onDismiss = { showCustomDateRangePicker = false },
-            onConfirm = { start, end ->
-                homeViewModel.setCustomDateRange(start, end)
-                showCustomDateRangePicker = false
+    if (showStartDateDialog) {
+        SingleDatePickerDialog(
+            onDismiss = { showStartDateDialog = false },
+            onConfirm = { date ->
+                homeViewModel.setCustomStartDate(date)
+                showStartDateDialog = false
+            }
+        )
+    }
+
+    if (showEndDateDialog) {
+        SingleDatePickerDialog(
+            onDismiss = { showEndDateDialog = false },
+            onConfirm = { date ->
+                homeViewModel.setCustomEndDate(date)
+                showEndDateDialog = false
             }
         )
     }
@@ -137,7 +167,7 @@ fun HomeScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    val pagerState = rememberPagerState(pageCount = { 3 })
+                    val pagerState = rememberPagerState(pageCount = { 4 })
                     HorizontalPager(
                         state = pagerState,
                         modifier = Modifier.fillMaxWidth().weight(1f)
@@ -151,6 +181,7 @@ fun HomeScreen(
                                 modifier = cardModifier
                             )
                             2 -> TirBar(uiState = uiState, modifier = cardModifier)
+                            3 -> AvgDailyInsulinMetric(value = uiState.avgDailyInsulin, modifier = cardModifier)
                         }
                     }
                     Spacer(modifier = Modifier.height(8.dp))
@@ -185,10 +216,6 @@ fun HomeScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(250.dp),
-                    zoomLevel = chartZoomLevel,
-                    panOffset = chartPanOffset,
-                    onZoom = { newZoom -> chartZoomLevel = newZoom },
-                    onPan = { newPan -> chartPanOffset = newPan },
                     isScrubbing = isScrubbing,
                     scrubberPosition = scrubberPosition,
                     onScrub = { position ->
@@ -199,7 +226,7 @@ fun HomeScreen(
                 )
 
                 var showFilterMenu by remember { mutableStateOf(false) }
-                Box(modifier = Modifier.align(Alignment.CenterHorizontally).padding(vertical = 8.dp)) {
+                Column(modifier = Modifier.align(Alignment.CenterHorizontally).padding(vertical = 8.dp)) {
                     Button(onClick = { showFilterMenu = true }) {
                         val filterText = when (uiState.selectedFilter) {
                             FilterType.TODAY -> "Today"
@@ -228,13 +255,23 @@ fun HomeScreen(
                                 },
                                 onClick = {
                                     showFilterMenu = false
-                                    if (filter == FilterType.CUSTOM) {
-                                        showCustomDateRangePicker = true
-                                    } else {
-                                        homeViewModel.setFilter(filter)
-                                    }
+                                    homeViewModel.setFilter(filter)
                                 }
                             )
+                        }
+                    }
+                    if (uiState.selectedFilter == FilterType.CUSTOM) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            val dateFormatter = remember { SimpleDateFormat("MMM d, yyyy", Locale.getDefault()) }
+                            OutlinedButton(onClick = { showStartDateDialog = true }) {
+                                val text = uiState.customStartDate?.let { dateFormatter.format(Date(it)) } ?: "Start Date"
+                                Text(text)
+                            }
+                            OutlinedButton(onClick = { showEndDateDialog = true }) {
+                                val text = uiState.customEndDate?.let { dateFormatter.format(Date(it)) } ?: "End Date"
+                                Text(text)
+                            }
                         }
                     }
                 }
@@ -242,7 +279,13 @@ fun HomeScreen(
         }
 
         // Recent History Card
-        Card(modifier = Modifier.fillMaxWidth()) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .onGloballyPositioned {
+                    historyCardPosition = it.positionInParent().y
+                }
+        ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text("Recent History", style = MaterialTheme.typography.titleMedium, modifier = Modifier.align(Alignment.CenterHorizontally))
                 Spacer(modifier = Modifier.height(8.dp))

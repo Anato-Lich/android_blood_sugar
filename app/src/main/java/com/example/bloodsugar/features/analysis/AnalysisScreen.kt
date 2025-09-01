@@ -1,6 +1,8 @@
 package com.example.bloodsugar.features.analysis
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -20,25 +22,32 @@ fun AnalysisScreen(analysisViewModel: AnalysisViewModel = viewModel()) {
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text("Time In Range Analysis", style = MaterialTheme.typography.headlineSmall)
-
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = { analysisViewModel.calculateTir(7) }, enabled = uiState.selectedPeriod != 7) {
+            Button(onClick = { analysisViewModel.updateAnalysisPeriod(7) }, enabled = uiState.selectedPeriod != 7) {
                 Text("7 Days")
             }
-            Button(onClick = { analysisViewModel.calculateTir(30) }, enabled = uiState.selectedPeriod != 30) {
+            Button(onClick = { analysisViewModel.updateAnalysisPeriod(30) }, enabled = uiState.selectedPeriod != 30) {
                 Text("30 Days")
             }
-            Button(onClick = { analysisViewModel.calculateTir(90) }, enabled = uiState.selectedPeriod != 90) {
+            Button(onClick = { analysisViewModel.updateAnalysisPeriod(90) }, enabled = uiState.selectedPeriod != 90) {
                 Text("90 Days")
             }
         }
 
         TirCard(uiState = uiState)
+
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("Daily Insulin Intake", style = MaterialTheme.typography.titleMedium)
+                Spacer(modifier = Modifier.height(16.dp))
+                InsulinBarChart(dailyDoses = uiState.dailyInsulin)
+            }
+        }
     }
 }
 

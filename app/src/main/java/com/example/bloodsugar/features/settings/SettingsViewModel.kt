@@ -28,6 +28,9 @@ data class SettingsUiState(
     val insulinDoseAccuracy: String = "0.5",
     val postMealNotificationEnabled: Boolean = false,
     val postMealNotificationDelay: String = "120",
+    val trendNotificationEnabled: Boolean = false,
+    val trendNotificationLowThreshold: String = "4.0",
+    val trendNotificationHighThreshold: String = "10.0",
     val hasUnsavedChanges: Boolean = false
 )
 
@@ -59,7 +62,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 settingsDataStore.dailyCarbsGoal,
                 settingsDataStore.insulinDoseAccuracy,
                 settingsDataStore.postMealNotificationEnabled,
-                settingsDataStore.postMealNotificationDelay
+                settingsDataStore.postMealNotificationDelay,
+                settingsDataStore.trendNotificationEnabled,
+                settingsDataStore.trendNotificationLowThreshold,
+                settingsDataStore.trendNotificationHighThreshold
             ) { values ->
                 val breakfast = values[0] as Float
                 val dinner = values[1] as Float
@@ -69,6 +75,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 val insulinDoseAccuracy = values[5] as Float
                 val postMealEnabled = values[6] as Boolean
                 val postMealDelay = values[7] as Int
+                val trendEnabled = values[8] as Boolean
+                val trendLow = values[9] as Float
+                val trendHigh = values[10] as Float
 
                 _uiState.update {
                     it.copy(
@@ -80,6 +89,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                         insulinDoseAccuracy = insulinDoseAccuracy.toString(),
                         postMealNotificationEnabled = postMealEnabled,
                         postMealNotificationDelay = postMealDelay.toString(),
+                        trendNotificationEnabled = trendEnabled,
+                        trendNotificationLowThreshold = trendLow.toString(),
+                        trendNotificationHighThreshold = trendHigh.toString(),
                         hasUnsavedChanges = false
                     )
                 }
@@ -119,6 +131,18 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         _uiState.update { it.copy(postMealNotificationDelay = delay, hasUnsavedChanges = true) }
     }
 
+    fun setTrendNotificationEnabled(enabled: Boolean) {
+        _uiState.update { it.copy(trendNotificationEnabled = enabled, hasUnsavedChanges = true) }
+    }
+
+    fun setTrendNotificationLowThreshold(threshold: String) {
+        _uiState.update { it.copy(trendNotificationLowThreshold = threshold, hasUnsavedChanges = true) }
+    }
+
+    fun setTrendNotificationHighThreshold(threshold: String) {
+        _uiState.update { it.copy(trendNotificationHighThreshold = threshold, hasUnsavedChanges = true) }
+    }
+
     fun saveSettings() {
         viewModelScope.launch {
             settingsDataStore.saveSettings(
@@ -129,7 +153,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 dailyCarbsGoal = _uiState.value.dailyCarbsGoal.replace(',', '.').toFloatOrNull() ?: 200f,
                 insulinDoseAccuracy = _uiState.value.insulinDoseAccuracy.replace(',', '.').toFloatOrNull() ?: 0.5f,
                 postMealEnabled = _uiState.value.postMealNotificationEnabled,
-                postMealDelay = _uiState.value.postMealNotificationDelay.toIntOrNull() ?: 120
+                postMealDelay = _uiState.value.postMealNotificationDelay.toIntOrNull() ?: 120,
+                trendNotificationsEnabled = _uiState.value.trendNotificationEnabled,
+                trendLowThreshold = _uiState.value.trendNotificationLowThreshold.replace(',', '.').toFloatOrNull() ?: 4.0f,
+                trendHighThreshold = _uiState.value.trendNotificationHighThreshold.replace(',', '.').toFloatOrNull() ?: 10.0f
             )
             _uiState.update { it.copy(hasUnsavedChanges = false) }
         }
@@ -160,7 +187,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         val eventRecords = repository.getAllEventsList()
         val activityRecords = repository.getAllActivitiesList()
 
-        val allRecords = (bloodSugarRecords.map { it as Any } + eventRecords.map { it as Any } + activityRecords.map { it as Any }).sortedByDescending {
+        val allRecords = (bloodSugarRecords.map { it } + eventRecords.map { it } + activityRecords.map { it }).sortedByDescending {
             when (it) {
                 is com.example.bloodsugar.database.BloodSugarRecord -> it.timestamp
                 is com.example.bloodsugar.database.EventRecord -> it.timestamp
@@ -241,7 +268,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         val eventRecords = repository.getAllEventsList()
         val activityRecords = repository.getAllActivitiesList()
 
-        val allRecords = (bloodSugarRecords.map { it as Any } + eventRecords.map { it as Any } + activityRecords.map { it as Any }).sortedByDescending {
+        val allRecords = (bloodSugarRecords.map { it } + eventRecords.map { it } + activityRecords.map { it }).sortedByDescending {
             when (it) {
                 is com.example.bloodsugar.database.BloodSugarRecord -> it.timestamp
                 is com.example.bloodsugar.database.EventRecord -> it.timestamp

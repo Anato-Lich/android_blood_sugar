@@ -22,15 +22,17 @@ import androidx.compose.ui.unit.dp
 import com.example.bloodsugar.database.ActivityRecord
 import com.example.bloodsugar.database.BloodSugarRecord
 import com.example.bloodsugar.database.EventRecord
+import com.example.bloodsugar.domain.SugarLevelCategory
+import com.example.bloodsugar.domain.getSugarLevelCategory
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
 fun getValueColor(value: Float, lowColor: Color, inRangeColor: Color, highColor: Color): Color {
-    return when {
-        value < 4f -> lowColor
-        value <= 10f -> inRangeColor
-        else -> highColor
+    return when (getSugarLevelCategory(value)) {
+        SugarLevelCategory.LOW -> lowColor
+        SugarLevelCategory.IN_RANGE -> inRangeColor
+        SugarLevelCategory.HIGH -> highColor
     }
 }
 

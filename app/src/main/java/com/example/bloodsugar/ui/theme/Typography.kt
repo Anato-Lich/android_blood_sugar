@@ -8,11 +8,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
 // Set of Material typography styles to start with
-val Typography: Typography
-    @Composable
-    get() {
-        val dimensions = LocalDimensions.current
-        return Typography(
+val Typography = Typography(
             // Display styles
             displaySmall = TextStyle(
                 fontFamily = FontFamily.Default,
@@ -82,4 +78,3 @@ val Typography: Typography
                 letterSpacing = 0.5.sp
             )
         )
-    }
