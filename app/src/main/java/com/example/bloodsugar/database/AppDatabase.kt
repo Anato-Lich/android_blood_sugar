@@ -4,10 +4,12 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(entities = [BloodSugarRecord::class, NotificationSetting::class, EventRecord::class, ActivityRecord::class, FoodItem::class], version = 9, exportSchema = false)
+@TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun bloodSugarDao(): BloodSugarDao
@@ -17,6 +19,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun foodDao(): FoodDao
 
     companion object {
+        private const val DATABASE_NAME = "blood_sugar_database"
+
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
@@ -78,7 +82,7 @@ abstract class AppDatabase : RoomDatabase() {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
-                    "blood_sugar_database"
+                    DATABASE_NAME
                 )
                 .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
                 .fallbackToDestructiveMigration()

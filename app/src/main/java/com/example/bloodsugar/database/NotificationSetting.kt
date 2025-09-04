@@ -7,7 +7,7 @@ import androidx.room.PrimaryKey
 data class NotificationSetting(
     @PrimaryKey(autoGenerate = true)
     val id: Int = 0,
-    val type: String = "daily", // "daily" or "interval"
+    val type: NotificationType = NotificationType.DAILY,
     val time: String = "08:00", // For daily notifications, e.g., "08:00"
     val intervalMinutes: Int = 60, // For interval notifications
     val message: String = "",

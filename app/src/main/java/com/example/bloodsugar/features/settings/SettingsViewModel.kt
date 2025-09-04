@@ -2,14 +2,13 @@ package com.example.bloodsugar.features.settings
 
 import android.app.Application
 import android.content.Context
-import android.graphics.pdf.PdfDocument
 import android.net.Uri
-import androidx.core.content.FileProvider
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.bloodsugar.data.BloodSugarRepository
 import com.example.bloodsugar.data.SettingsDataStore
 import com.example.bloodsugar.database.AppDatabase
+import com.example.bloodsugar.domain.ExportDataUseCase
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -39,6 +38,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     private val settingsDataStore = SettingsDataStore(application)
     private val workManager = androidx.work.WorkManager.getInstance(application)
     private val repository: BloodSugarRepository
+    private val exportDataUseCase: ExportDataUseCase
 
     private val _exportChannel = Channel<String>()
     val exportChannel = _exportChannel.receiveAsFlow()
@@ -52,6 +52,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     init {
         val db = AppDatabase.getDatabase(application)
         repository = BloodSugarRepository(db)
+        exportDataUseCase = ExportDataUseCase(repository, application.applicationContext)
 
         viewModelScope.launch {
             combine(
@@ -168,138 +169,17 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun exportDataAsCsv() {
         viewModelScope.launch {
-            val csvContent = generateCsvContent()
+            val csvContent = exportDataUseCase.generateCsvContent()
             _exportChannel.send(csvContent)
         }
     }
 
     fun exportDataAsPdf(context: Context) {
         viewModelScope.launch {
-            val uri = generateAndSavePdf(context)
+            val uri = exportDataUseCase.generateAndSavePdf(context)
             if (uri != null) {
                 _pdfExportChannel.send(uri)
             }
         }
-    }
-
-    private suspend fun generateAndSavePdf(context: Context): Uri? {
-        val bloodSugarRecords = repository.getAllRecordsList()
-        val eventRecords = repository.getAllEventsList()
-        val activityRecords = repository.getAllActivitiesList()
-
-        val allRecords = (bloodSugarRecords.map { it } + eventRecords.map { it } + activityRecords.map { it }).sortedByDescending {
-            when (it) {
-                is com.example.bloodsugar.database.BloodSugarRecord -> it.timestamp
-                is com.example.bloodsugar.database.EventRecord -> it.timestamp
-                is com.example.bloodsugar.database.ActivityRecord -> it.timestamp
-                else -> 0
-            }
-        }
-
-        val document = PdfDocument()
-        var pageInfo = PdfDocument.PageInfo.Builder(595, 842, 1).create()
-        var page = document.startPage(pageInfo)
-        var canvas = page.canvas
-        val paint = android.graphics.Paint()
-
-        var yPosition = 40f
-        paint.textSize = 16f
-        paint.typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD)
-        canvas.drawText("Blood Sugar Report", 40f, yPosition, paint)
-        yPosition += 40f
-
-        paint.textSize = 10f
-        paint.typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.NORMAL)
-
-        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault())
-
-        allRecords.forEach {
-            if (yPosition > 800) { // New page if content overflows
-                document.finishPage(page)
-                pageInfo = PdfDocument.PageInfo.Builder(595, 842, document.pages.size + 1).create()
-                page = document.startPage(pageInfo)
-                canvas = page.canvas
-                yPosition = 40f
-            }
-
-            val recordText = when (it) {
-                is com.example.bloodsugar.database.BloodSugarRecord -> {
-                    val timestamp = sdf.format(java.util.Date(it.timestamp))
-                    "$timestamp - Blood Sugar: ${it.value} mmol/L - ${it.comment}"
-                }
-                is com.example.bloodsugar.database.EventRecord -> {
-                    val timestamp = sdf.format(java.util.Date(it.timestamp))
-                    val unit = if (it.type == "INSULIN") "units" else "grams"
-                    "$timestamp - ${it.type}: ${it.value} $unit - ${it.foodName ?: ""}"
-                }
-                is com.example.bloodsugar.database.ActivityRecord -> {
-                    val timestamp = sdf.format(java.util.Date(it.timestamp))
-                    "$timestamp - Activity: ${it.type} for ${it.durationMinutes} min (${it.intensity})"
-                }
-                else -> ""
-            }
-            canvas.drawText(recordText, 40f, yPosition, paint)
-            yPosition += 20f
-        }
-
-        document.finishPage(page)
-
-        try {
-            val exportsDir = java.io.File(context.cacheDir, "exports")
-            if (!exportsDir.exists()) {
-                exportsDir.mkdirs()
-            }
-            val file = java.io.File(exportsDir, "bloodsugar_report_${System.currentTimeMillis()}.pdf")
-            val fos = java.io.FileOutputStream(file)
-            document.writeTo(fos)
-            document.close()
-            fos.close()
-
-            return FileProvider.getUriForFile(context, "com.example.bloodsugar.provider", file)
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-
-        return null
-    }
-
-    private suspend fun generateCsvContent(): String {
-        val bloodSugarRecords = repository.getAllRecordsList()
-        val eventRecords = repository.getAllEventsList()
-        val activityRecords = repository.getAllActivitiesList()
-
-        val allRecords = (bloodSugarRecords.map { it } + eventRecords.map { it } + activityRecords.map { it }).sortedByDescending {
-            when (it) {
-                is com.example.bloodsugar.database.BloodSugarRecord -> it.timestamp
-                is com.example.bloodsugar.database.EventRecord -> it.timestamp
-                is com.example.bloodsugar.database.ActivityRecord -> it.timestamp
-                else -> 0
-            }
-        }
-
-        val header = "Timestamp,Type,Value,Unit,Comment/Details"
-        val rows = allRecords.map { record ->
-            val sdf = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault())
-            when (record) {
-                is com.example.bloodsugar.database.BloodSugarRecord -> {
-                    val timestamp = sdf.format(java.util.Date(record.timestamp))
-                    "$timestamp,Blood Sugar,${record.value},mmol/L,${record.comment.replace(",", ";")}"
-                }
-                is com.example.bloodsugar.database.EventRecord -> {
-                    val timestamp = sdf.format(java.util.Date(record.timestamp))
-                    val unit = if (record.type == "INSULIN") "units" else "grams"
-                    val details = record.foodName ?: ""
-                    "$timestamp,${record.type},${record.value},$unit,${details.replace(",", ";")}"
-                }
-                is com.example.bloodsugar.database.ActivityRecord -> {
-                    val timestamp = sdf.format(java.util.Date(record.timestamp))
-                    val details = "${record.type} (${record.intensity})"
-                    "$timestamp,Activity,${record.durationMinutes},minutes,$details"
-                }
-                else -> ""
-            }
-        }
-
-        return header + "\n" + rows.joinToString("\n")
     }
 }

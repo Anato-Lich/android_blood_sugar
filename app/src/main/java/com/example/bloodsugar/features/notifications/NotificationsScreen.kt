@@ -46,10 +46,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.bloodsugar.R
 import com.example.bloodsugar.database.NotificationSetting
+import com.example.bloodsugar.database.NotificationType
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
@@ -76,7 +79,7 @@ fun NotificationsScreen(notificationsViewModel: NotificationsViewModel = viewMod
     Scaffold(
         floatingActionButton = {
             FloatingActionButton(onClick = { showAddDialog = true }) {
-                Icon(Icons.Default.Add, contentDescription = "Add Notification")
+                Icon(Icons.Default.Add, contentDescription = stringResource(id = R.string.notifications_add))
             }
         }
     ) { padding ->
@@ -88,7 +91,7 @@ fun NotificationsScreen(notificationsViewModel: NotificationsViewModel = viewMod
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             item {
-                Text("Reminders", style = MaterialTheme.typography.headlineMedium)
+                Text(stringResource(id = R.string.notifications_title), style = MaterialTheme.typography.headlineMedium)
                 Spacer(modifier = Modifier.height(8.dp))
             }
 
@@ -99,7 +102,7 @@ fun NotificationsScreen(notificationsViewModel: NotificationsViewModel = viewMod
                         color = MaterialTheme.colorScheme.primaryContainer
                     ) {
                         Text(
-                            text = if (type == "daily") "Daily Reminders" else "Interval Reminders",
+                            text = if (type == NotificationType.DAILY) stringResource(id = R.string.notifications_daily_reminders) else stringResource(id = R.string.notifications_interval_reminders),
                             style = MaterialTheme.typography.titleMedium,
                             modifier = Modifier.padding(8.dp)
                         )
@@ -158,20 +161,20 @@ fun NotificationItem(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = notification.message, style = MaterialTheme.typography.bodyLarge)
-                val description = if (notification.type == "daily") {
-                    "Daily at ${notification.time}"
+                val description = if (notification.type == NotificationType.DAILY) {
+                    stringResource(id = R.string.notifications_daily_at, notification.time)
                 } else {
                     val interval = notification.intervalMinutes
-                    val unit = if (interval >= 60 && interval % 60 == 0) "hour(s)" else "minute(s)"
-                    val value = if (unit == "hour(s)") interval / 60 else interval
-                    "Every $value $unit from ${notification.startTime} to ${notification.endTime}"
+                    val unit = if (interval >= 60 && interval % 60 == 0) stringResource(id = R.string.notifications_hours) else stringResource(id = R.string.notifications_minutes)
+                    val value = if (unit == stringResource(id = R.string.notifications_hours)) interval / 60 else interval
+                    stringResource(id = R.string.notifications_interval_description, value, unit, notification.startTime ?: "", notification.endTime ?: "")
                 }
                 Text(text = description, style = MaterialTheme.typography.bodySmall)
             }
 
             Switch(checked = notification.isEnabled, onCheckedChange = onToggle)
             IconButton(onClick = onDelete) {
-                Icon(Icons.Default.Delete, contentDescription = "Delete Notification")
+                Icon(Icons.Default.Delete, contentDescription = stringResource(id = R.string.delete_food))
             }
         }
     }
@@ -187,7 +190,7 @@ fun NotificationDialog(
     var step by remember { mutableStateOf(1) }
 
     var message by remember { mutableStateOf(notificationSetting?.message ?: "") }
-    var type by remember { mutableStateOf(notificationSetting?.type ?: "daily") }
+    var type by remember { mutableStateOf(notificationSetting?.type ?: NotificationType.DAILY) }
     var time by remember { mutableStateOf(notificationSetting?.time ?: "08:00") }
     var intervalValue by remember { mutableStateOf("1") }
     var intervalUnit by remember { mutableStateOf("Hours") }
@@ -218,7 +221,7 @@ fun NotificationDialog(
             focusManager.clearFocus()
             onDismiss()
         },
-        title = { Text(if (notificationSetting == null) "Add Notification" else "Edit Notification") },
+        title = { Text(if (notificationSetting == null) stringResource(id = R.string.notifications_add) else stringResource(id = R.string.notifications_edit)) },
         text = {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 when (step) {
@@ -252,7 +255,7 @@ fun NotificationDialog(
         confirmButton = {
             if (step == 1) {
                 Button(onClick = { step = 2 }, enabled = message.isNotBlank()) {
-                    Text("Next")
+                    Text(stringResource(id = R.string.next))
                 }
             } else {
                 Button(
@@ -267,28 +270,28 @@ fun NotificationDialog(
                             intervalMinutes = intervalInMinutes,
                             message = message,
                             isEnabled = isEnabled,
-                            startTime = if (type == "interval") startTime else null,
-                            endTime = if (type == "interval") endTime else null
+                            startTime = if (type == NotificationType.INTERVAL) startTime else null,
+                            endTime = if (type == NotificationType.INTERVAL) endTime else null
                         )
                         onConfirm(setting)
                     },
-                    enabled = message.isNotBlank() && (type == "daily" || intervalValue.toIntOrNull() != null)
+                    enabled = message.isNotBlank() && (type == NotificationType.DAILY || intervalValue.toIntOrNull() != null)
                 ) {
-                    Text(if (notificationSetting == null) "Add" else "Save")
+                    Text(if (notificationSetting == null) stringResource(id = R.string.add) else stringResource(id = R.string.save))
                 }
             }
         },
         dismissButton = {
             if (step == 2) {
                 Button(onClick = { step = 1 }) {
-                    Text("Back")
+                    Text(stringResource(id = R.string.back))
                 }
             } else {
                 Button(onClick = {
                     focusManager.clearFocus()
                     onDismiss()
                 }) {
-                    Text("Cancel")
+                    Text(stringResource(id = R.string.cancel))
                 }
             }
         }
@@ -312,7 +315,7 @@ fun NotificationDialog(
 
         AlertDialog(
             onDismissRequest = { showTimePicker = false },
-            title = { Text("Select Time") },
+            title = { Text(stringResource(id = R.string.notifications_select_time)) },
             text = {
                 Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                     TimePicker(state = timePickerState)
@@ -328,12 +331,12 @@ fun NotificationDialog(
                     }
                     showTimePicker = false
                 }) {
-                    Text("OK")
+                    Text(stringResource(id = R.string.ok))
                 }
             },
             dismissButton = {
                 Button(onClick = { showTimePicker = false }) {
-                    Text("Cancel")
+                    Text(stringResource(id = R.string.cancel))
                 }
             }
         )
@@ -345,15 +348,15 @@ fun Step1Message(message: String, onMessageChange: (String) -> Unit) {
     OutlinedTextField(
         value = message,
         onValueChange = onMessageChange,
-        label = { Text("Reminder Message") },
+        label = { Text(stringResource(id = R.string.notifications_reminder_message)) },
         modifier = Modifier.fillMaxWidth()
     )
 }
 
 @Composable
 fun Step2TypeAndConfig(
-    type: String,
-    onTypeChange: (String) -> Unit,
+    type: NotificationType,
+    onTypeChange: (NotificationType) -> Unit,
     time: String,
     onTimeSelectorClick: () -> Unit,
     intervalValue: String,
@@ -371,32 +374,32 @@ fun Step2TypeAndConfig(
             horizontalArrangement = Arrangement.Center,
             modifier = Modifier.fillMaxWidth()
         ) {
-            RadioButton(selected = type == "daily", onClick = { onTypeChange("daily") })
-            Text("Daily")
+            RadioButton(selected = type == NotificationType.DAILY, onClick = { onTypeChange(NotificationType.DAILY) })
+            Text(stringResource(id = R.string.notifications_type_daily))
             Spacer(modifier = Modifier.width(16.dp))
-            RadioButton(selected = type == "interval", onClick = { onTypeChange("interval") })
-            Text("Interval")
+            RadioButton(selected = type == NotificationType.INTERVAL, onClick = { onTypeChange(NotificationType.INTERVAL) })
+            Text(stringResource(id = R.string.notifications_type_interval))
         }
 
-        if (type == "daily") {
-            TimeSelector(label = "Time", time = time, onClick = onTimeSelectorClick)
+        if (type == NotificationType.DAILY) {
+            TimeSelector(label = stringResource(id = R.string.notifications_time), time = time, onClick = onTimeSelectorClick)
         } else {
             OutlinedTextField(
                 value = intervalValue,
                 onValueChange = onIntervalValueChange,
-                label = { Text("Interval") },
+                label = { Text(stringResource(id = R.string.notifications_interval)) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 modifier = Modifier.fillMaxWidth(0.9f)
             )
             Row(verticalAlignment = Alignment.CenterVertically) {
                 RadioButton(selected = intervalUnit == "Minutes", onClick = { onIntervalUnitChange("Minutes") })
-                Text("Minutes")
+                Text(stringResource(id = R.string.notifications_minutes))
                 Spacer(modifier = Modifier.width(8.dp))
                 RadioButton(selected = intervalUnit == "Hours", onClick = { onIntervalUnitChange("Hours") })
-                Text("Hours")
+                Text(stringResource(id = R.string.notifications_hours))
             }
-            TimeSelector(label = "Start Time", time = startTime, onClick = onStartTimeSelectorClick)
-            TimeSelector(label = "End Time", time = endTime, onClick = onEndTimeSelectorClick)
+            TimeSelector(label = stringResource(id = R.string.notifications_start_time), time = startTime, onClick = onStartTimeSelectorClick)
+            TimeSelector(label = stringResource(id = R.string.notifications_end_time), time = endTime, onClick = onEndTimeSelectorClick)
         }
     }
 }

@@ -8,7 +8,7 @@ data class EventRecord(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
     val timestamp: Long,
-    val type: String, // e.g., "INSULIN" or "CARBS"
+    val type: EventType,
     val value: Float,
     val foodName: String? = null,
     val foodServing: String? = null

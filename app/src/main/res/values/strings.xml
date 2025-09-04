@@ -1,0 +1,187 @@
+<resources>
+    <string name="app_name">Blood Sugar</string>
+    <string name="screen_home">Home</string>
+    <string name="screen_notifications">Notifications</string>
+    <string name="screen_calculator">Calculator</string>
+    <string name="screen_food">Food</string>
+    <string name="screen_analysis">Analysis</string>
+    <string name="settings">Settings</string>
+    <string name="menu">Menu</string>
+    <string name="log_activity">Activity</string>
+    <string name="log_carbs_and_insulin">Carbs and Insulin</string>
+    <string name="log_sugar_level">Sugar level</string>
+    <string name="add_log">Add Log</string>
+    <string name="add_food">Add Food</string>
+    <string name="edit_food">Edit Food</string>
+    <string name="food_name">Food Name</string>
+    <string name="serving_size_grams">Serving Size (grams)</string>
+    <string name="carbs_per_serving_grams">Carbs per Serving (grams)</string>
+    <string name="add">Add</string>
+    <string name="save">Save</string>
+    <string name="cancel">Cancel</string>
+
+    <!-- Analysis Screen -->
+    <string name="analysis_7_days">7 Days</string>
+    <string name="analysis_30_days">30 Days</string>
+    <string name="analysis_90_days">90 Days</string>
+    <string name="analysis_distribution">Distribution</string>
+    <string name="analysis_daily_insulin_intake">Daily Insulin Intake</string>
+    <string name="analysis_no_data">Log at least two blood sugar readings to see your Time in Range analysis.</string>
+    <string name="analysis_very_high">Very High</string>
+    <string name="analysis_high">High</string>
+    <string name="analysis_in_range">In Range</string>
+    <string name="analysis_low">Low</string>
+    <string name="analysis_very_low">Very Low</string>
+
+    <!-- Calculator Screen -->
+    <string name="calculator_tab_insulin_from_carbs">Insulin from Carbs</string>
+    <string name="calculator_tab_carbs_from_insulin">Carbs from Insulin</string>
+    <string name="calculator_tab_remaining_carbs">Remaining Carbs</string>
+    <string name="calculator_meal_builder">Meal Builder</string>
+    <string name="calculator_total_carbs">Total Carbs</string>
+    <string name="calculator_add_food">Add Food</string>
+    <string name="calculator_add_carbs">Add Carbs</string>
+    <string name="dialog_title_log_blood_sugar">Log Blood Sugar</string>
+    <string name="dialog_title_log_event">Log Event</string>
+    <string name="dialog_title_log_activity">Log Activity</string>
+    <string name="dialog_label_value_mmol_l">Value (mmol/L)</string>
+    <string name="dialog_label_comment">Comment</string>
+    <string name="dialog_label_carbohydrates_grams">Carbohydrates (grams)</string>
+    <string name="dialog_label_insulin_units">Insulin (units)</string>
+    <string name="dialog_label_type">Type</string>
+    <string name="dialog_label_duration_minutes">Duration (minutes)</string>
+    <string name="dialog_label_intensity">Intensity</string>
+    <string name="activity_type_walking">Walking</string>
+    <string name="activity_type_running">Running</string>
+    <string name="activity_type_cycling">Cycling</string>
+    <string name="activity_type_gym">Gym</string>
+    <string name="activity_type_other">Other</string>
+    <string name="intensity_low">Low</string>
+    <string name="intensity_medium">Medium</string>
+    <string name="intensity_high">High</string>
+    <string name="event_type_insulin">Insulin</string>
+    <string name="event_type_carbs">Carbs</string>
+    <string name="unit_u">u</string>
+    <string name="carbs_label">Carbs: %1$.1f g (%2$d%% of goal)</string>
+    <string name="weight_label">Weight: %.1f g</string>
+    <string name="servings_label">Servings: %.1f</string>
+    <string name="unit_g">g</string>
+    <string name="unit_servings">servings</string>
+    <string name="calculator_multiple_items">Multiple Items</string>
+    <string name="calculator_manual_entry">Manual Entry</string>
+    <string name="calculator_meal_details_format">- %1$s (%2$s%3$s) -> %4$.1fg</string>
+    <string name="calculator_required_insulin_dose">Required Insulin Dose</string>
+    <string name="calculator_log_meal">Log Meal</string>
+    <string name="calculator_clear_all">Clear All</string>
+    <string name="calculator_calculate_carbs_from_insulin">Calculate Carbs from Insulin Dose</string>
+    <string name="calculator_insulin_dose">Insulin Dose</string>
+    <string name="calculator_calculated_carbs">Calculated Carbs (grams)</string>
+    <string name="calculator_calculate_remaining_carbs">Calculate Remaining Carbs</string>
+    <string name="calculator_remaining_carbs_to_eat">Remaining Carbs to Eat</string>
+    <string name="edit">Edit</string>
+    <string name="delete">Delete</string>
+    <string name="food_servings">Servings</string>
+    <string name="food_weight_g">Weight (g)</string>
+    <string name="food_num_servings">Number of Servings</string>
+    <string name="food_additional_carbs">Additional Carbs (grams)</string>
+
+    <!-- Food Screen -->
+    <string name="food_library">Food Library</string>
+    <string name="delete_food">Delete Food</string>
+
+    <!-- History Screen -->
+    <string name="history_full_history">Full History</string>
+    <string name="history_back">Back</string>
+    <string name="history_no_data">No history to display. Log your first blood sugar reading, event, or activity to see it here!</string>
+
+    <!-- Home Screen -->
+    <string name="home_metric_min">Min</string>
+    <string name="home_metric_avg">Avg</string>
+    <string name="home_metric_max">Max</string>
+    <string name="home_no_metrics">Log a blood sugar reading to see your metrics.</string>
+    <string name="home_est_hba1c">Est. HbA1c</string>
+    <string name="home_hba1c_disclaimer">An estimate based on your 90-day average. Consult a doctor for official results.</string>
+    <string name="home_daily_carb_goal">Daily Carb Goal</string>
+    <string name="home_carb_goal_progress">Goal: %dg</string>
+    <string name="home_time_in_range">Time In Range</string>
+    <string name="home_no_data_in_period">No data in selected period</string>
+    <string name="home_tir_low">Low</string>
+    <string name="home_tir_normal">Normal</string>
+    <string name="home_tir_high">High</string>
+    <string name="home_avg_daily_insulin">Avg. Daily Insulin</string>
+    <string name="home_last_7_days">last 7 days</string>
+    <string name="home_na">N/A</string>
+    <string name="home_recent_history">Recent History</string>
+    <string name="home_no_recent_history">Your recent logs will appear here.</string>
+    <string name="home_view_all_history">View All History</string>
+    <string name="home_filter">Filter: %s</string>
+    <string name="home_filter_today">Today</string>
+    <string name="home_filter_3_days">3 Days</string>
+    <string name="home_filter_7_days">7 Days</string>
+    <string name="home_filter_custom">Custom</string>
+    <string name="home_start_date">Start Date</string>
+    <string name="home_end_date">End Date</string>
+
+    <!-- Notifications Screen -->
+    <string name="notifications_title">Reminders</string>
+    <string name="notifications_add">Add Notification</string>
+    <string name="notifications_daily_reminders">Daily Reminders</string>
+    <string name="notifications_interval_reminders">Interval Reminders</string>
+    <string name="notifications_daily_at">Daily at %s</string>
+    <string name="notifications_interval_description" formatted="false">Every %d %s from %s to %s</string>
+    <string name="notifications_edit">Edit Notification</string>
+    <string name="next">Next</string>
+    <string name="back">Back</string>
+    <string name="notifications_select_time">Select Time</string>
+    <string name="ok">OK</string>
+    <string name="notifications_reminder_message">Reminder Message</string>
+    <string name="notifications_type_daily">Daily</string>
+    <string name="notifications_type_interval">Interval</string>
+    <string name="notifications_time">Time</string>
+    <string name="notifications_interval">Interval</string>
+    <string name="notifications_minutes">Minutes</string>
+    <string name="notifications_hours">Hours</string>
+    <string name="notifications_start_time">Start Time</string>
+    <string name="notifications_end_time">End Time</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_save">Save Settings</string>
+    <string name="settings_icr_title">Insulin to Carb Ratios (ICR)</string>
+    <string name="settings_breakfast">Breakfast</string>
+    <string name="settings_dinner">Dinner</string>
+    <string name="settings_supper">Supper</string>
+    <string name="settings_carb_to_bu_title">Carb-to-Bread-Unit Conversion</string>
+    <string name="settings_grams_per_bu">Grams of Carbs per 1 BU</string>
+    <string name="settings_daily_carb_goal_title">Daily Carb Goal</string>
+    <string name="settings_grams_per_day">Grams of Carbs per Day</string>
+    <string name="settings_insulin_dose_accuracy_title">Insulin Dose Accuracy</string>
+    <string name="settings_round_up_to_nearest">Round up to nearest</string>
+    <string name="settings_post_meal_reminder_title">Post-Meal Reminder</string>
+    <string name="settings_enable_post_meal_notification">Enable post-meal notification</string>
+    <string name="settings_delay_after_meal">Delay after meal (minutes)</string>
+    <string name="settings_trend_notifications_title">Trend Notifications</string>
+    <string name="settings_enable_trend_notifications">Enable trend notifications</string>
+    <string name="settings_low_threshold">Low Threshold</string>
+    <string name="settings_high_threshold">High Threshold</string>
+    <string name="settings_export_data_title">Export Data</string>
+    <string name="settings_export_as_csv">Export as CSV</string>
+    <string name="settings_export_as_pdf">Export as PDF</string>
+    <string name="settings_debug_options_title">Debug Options</string>
+    <string name="settings_cancel_all_notifications">Cancel All Pending Notifications</string>
+
+    <!-- Notification Worker -->
+    <string name="notification_channel_name">Blood Sugar Reminders</string>
+    <string name="notification_title">Blood Sugar Reminder</string>
+    <string name="notification_post_meal">Time to check your blood sugar after your meal.</string>
+
+    <!-- Export -->
+    <string name="export_csv_header">Timestamp,Type,Value,Unit,Comment/Details</string>
+    <string name="export_type_blood_sugar">Blood Sugar</string>
+    <string name="export_unit_mmol_l">mmol/L</string>
+    <string name="export_unit_units">units</string>
+    <string name="export_unit_grams">grams</string>
+    <string name="export_type_activity">Activity</string>
+    <string name="export_unit_minutes">minutes</string>
+    <string name="export_pdf_title">Blood Sugar Report</string>
+
+</resources>

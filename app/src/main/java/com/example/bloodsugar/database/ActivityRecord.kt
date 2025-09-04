@@ -8,7 +8,7 @@ data class ActivityRecord(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
     val timestamp: Long,
-    val type: String, // e.g., "Walking", "Running", "Cycling"
+    val type: ActivityType,
     val durationMinutes: Int,
-    val intensity: String // e.g., "Low", "Medium", "High"
+    val intensity: ActivityIntensity
 )

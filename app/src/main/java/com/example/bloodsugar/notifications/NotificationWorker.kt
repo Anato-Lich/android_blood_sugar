@@ -12,6 +12,8 @@ import androidx.work.WorkManager
 import androidx.work.Worker
 import androidx.work.WorkerParameters
 import com.example.bloodsugar.R
+import com.example.bloodsugar.database.NotificationType
+import com.example.bloodsugar.domain.NotificationTimeCalculator
 import java.util.concurrent.TimeUnit
 
 private const val TAG = "NotificationWorker"
@@ -39,16 +41,16 @@ class NotificationWorker(appContext: Context, workerParams: WorkerParameters) : 
             }
 
             // Rest of your existing logic...
-            when (type) {
-                "daily" -> {
+            when (type.lowercase()) {
+                NotificationType.DAILY.name.lowercase() -> {
                     val time = inputData.getString("time")
                     Log.d(TAG, "Daily notification. Showing notification.")
                     showNotification(message, time)
                 }
-                "interval" -> {
+                NotificationType.INTERVAL.name.lowercase() -> {
                     val startTime = inputData.getString("startTime")
                     val endTime = inputData.getString("endTime")
-                    if (startTime != null && endTime != null && isTimeInWindow(startTime, endTime)) {
+                    if (startTime != null && endTime != null && NotificationTimeCalculator.isTimeInWindow(startTime, endTime)) {
                         Log.d(TAG, "Interval notification within window. Showing notification.")
                         showNotification(message, null)
                     } else {
@@ -69,7 +71,7 @@ class NotificationWorker(appContext: Context, workerParams: WorkerParameters) : 
                 return Result.success()
             }
 
-            if (type == "daily" || type == "interval") { // Only reschedule daily and interval notifications
+            if (type.equals(NotificationType.DAILY.name, ignoreCase = true) || type.equals(NotificationType.INTERVAL.name, ignoreCase = true)) { // Only reschedule daily and interval notifications
                 reschedule(type)
             }
 
@@ -88,7 +90,7 @@ class NotificationWorker(appContext: Context, workerParams: WorkerParameters) : 
         val notificationManager = applicationContext.getSystemService(android.content.Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
 
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            val channel = android.app.NotificationChannel("blood_sugar_notifications", "Blood Sugar Reminders", android.app.NotificationManager.IMPORTANCE_HIGH)
+            val channel = android.app.NotificationChannel("blood_sugar_notifications", applicationContext.getString(R.string.notification_channel_name), android.app.NotificationManager.IMPORTANCE_HIGH)
             notificationManager.createNotificationChannel(channel)
         }
 
@@ -105,7 +107,7 @@ class NotificationWorker(appContext: Context, workerParams: WorkerParameters) : 
         val notificationText = if (time != null) "$message at $time" else message
 
         val notification = androidx.core.app.NotificationCompat.Builder(applicationContext, "blood_sugar_notifications")
-            .setContentTitle("Blood Sugar Reminder")
+            .setContentTitle(applicationContext.getString(R.string.notification_title))
             .setContentText(notificationText)
             .setSmallIcon(R.drawable.ic_notifications)
             .setContentIntent(pendingIntent)
@@ -117,20 +119,6 @@ class NotificationWorker(appContext: Context, workerParams: WorkerParameters) : 
         Log.d(TAG, "Notification shown with ID: $notificationId")
     }
 
-    private fun calculateInitialDelayForDaily(hour: Long, minute: Long): Long {
-        val now = java.util.Calendar.getInstance()
-        val target = java.util.Calendar.getInstance().apply {
-            set(java.util.Calendar.HOUR_OF_DAY, hour.toInt())
-            set(java.util.Calendar.MINUTE, minute.toInt())
-            set(java.util.Calendar.SECOND, 0)
-            set(java.util.Calendar.MILLISECOND, 0)
-        }
-        if (target.before(now)) {
-            target.add(java.util.Calendar.DAY_OF_YEAR, 1)
-        }
-        return target.timeInMillis - now.timeInMillis
-    }
-
     private fun reschedule(type: String) {
         val originalTag = this.tags.firstOrNull()
         if (originalTag == null) {
@@ -138,8 +126,8 @@ class NotificationWorker(appContext: Context, workerParams: WorkerParameters) : 
             return
         }
 
-        val delay: Long = when (type) {
-            "daily" -> {
+        val delay: Long = when (type.lowercase()) {
+            NotificationType.DAILY.name.lowercase() -> {
                 val time = inputData.getString("time")
                 if (time.isNullOrEmpty()) {
                     Log.e(TAG, "Cannot reschedule daily work without time, using 24h fallback")
@@ -149,10 +137,10 @@ class NotificationWorker(appContext: Context, workerParams: WorkerParameters) : 
                     val timeParts = time.split(":")
                     val hour = timeParts[0].toLong()
                     val minute = timeParts[1].toLong()
-                    calculateInitialDelayForDaily(hour, minute)
+                    NotificationTimeCalculator.calculateInitialDelayForDaily(hour, minute)
                 }
             }
-            "interval" -> {
+            NotificationType.INTERVAL.name.lowercase() -> {
                 val intervalValue = inputData.getInt("intervalMinutes", 60)
                 val startTime = inputData.getString("startTime")
                 val endTime = inputData.getString("endTime")
@@ -162,7 +150,7 @@ class NotificationWorker(appContext: Context, workerParams: WorkerParameters) : 
                     return
                 }
 
-                val nextExecutionTime = calculateNextIntervalTimestamp(intervalValue, startTime, endTime)
+                val nextExecutionTime = NotificationTimeCalculator.calculateNextIntervalTimestamp(intervalValue, startTime, endTime)
                 if (nextExecutionTime == -1L) {
                     Log.e(TAG, "Could not calculate next execution time. Stopping reschedule.")
                     return
@@ -191,73 +179,5 @@ class NotificationWorker(appContext: Context, workerParams: WorkerParameters) : 
             nextWorkRequest
         )
         Log.d(TAG, "Work enqueued for tag: $originalTag")
-    }
-
-    private fun isTimeInWindow(startTime: String, endTime: String): Boolean {
-        val calendar = java.util.Calendar.getInstance()
-        val result = isTimeInWindow(startTime, endTime, calendar)
-        val currentHour = calendar.get(java.util.Calendar.HOUR_OF_DAY)
-        val currentMinute = calendar.get(java.util.Calendar.MINUTE)
-        Log.d(TAG, "Time check - current: $currentHour:$currentMinute, window: $startTime-$endTime, inWindow: $result")
-        return result
-    }
-
-    private fun isTimeInWindow(startTime: String, endTime: String, calendar: java.util.Calendar): Boolean {
-        val currentHour = calendar.get(java.util.Calendar.HOUR_OF_DAY)
-        val currentMinute = calendar.get(java.util.Calendar.MINUTE)
-
-        val (startHour, startMinute) = startTime.split(":").map { it.toInt() }
-        val (endHour, endMinute) = endTime.split(":").map { it.toInt() }
-
-        val startTimeInMinutes = startHour * 60 + startMinute
-        val originalEndTimeInMinutes = endHour * 60 + endMinute
-        val endTimeInMinutesWithBuffer = originalEndTimeInMinutes + 1
-        val currentTimeInMinutes = currentHour * 60 + currentMinute
-
-        return if (startTimeInMinutes <= originalEndTimeInMinutes) {
-            currentTimeInMinutes >= startTimeInMinutes && currentTimeInMinutes < endTimeInMinutesWithBuffer
-        } else { // Overnight case
-            currentTimeInMinutes >= startTimeInMinutes || currentTimeInMinutes < endTimeInMinutesWithBuffer
-        }
-    }
-
-    private fun calculateNextIntervalTimestamp(intervalMinutes: Int, startTimeStr: String, endTimeStr: String): Long {
-        Log.d(TAG, "Calculating next interval: $intervalMinutes minutes, from $startTimeStr to $endTimeStr")
-        val now = java.util.Calendar.getInstance()
-        val (startHour, startMinute) = startTimeStr.split(":").map { it.toInt() }
-
-        // 1. Find an "anchor" time. This is the most recent startTime.
-        var anchor = java.util.Calendar.getInstance().apply {
-            set(java.util.Calendar.HOUR_OF_DAY, startHour)
-            set(java.util.Calendar.MINUTE, startMinute)
-            set(java.util.Calendar.SECOND, 0)
-            set(java.util.Calendar.MILLISECOND, 0)
-        }
-        if (anchor.after(now)) {
-            anchor.add(java.util.Calendar.DAY_OF_YEAR, -1)
-        }
-        Log.d(TAG, "Anchor time: ${anchor.time}")
-
-        // 2. Start generating ticks from the anchor and find the first one after `now`.
-        var nextTrigger = anchor.clone() as java.util.Calendar
-        while (nextTrigger.timeInMillis <= now.timeInMillis) {
-            nextTrigger.add(java.util.Calendar.MINUTE, intervalMinutes)
-        }
-        Log.d(TAG, "First potential trigger: ${nextTrigger.time}")
-
-        // 3. Now we have the first potential trigger time. Check if it's in a valid window.
-        // Loop until we find a valid one.
-        for (i in 0..(1440 / intervalMinutes.coerceAtLeast(1))) { // Limit loop to one day's worth of intervals
-            Log.d(TAG, "Checking trigger: ${nextTrigger.time}")
-            if (isTimeInWindow(startTimeStr, endTimeStr, nextTrigger)) {
-                Log.d(TAG, "Found valid trigger time: ${nextTrigger.time}")
-                return nextTrigger.timeInMillis // Found it.
-            }
-            // If not, advance to the next tick and check again.
-            nextTrigger.add(java.util.Calendar.MINUTE, intervalMinutes)
-        }
-
-        Log.w(TAG, "Could not find a valid next trigger time.")
-        return -1L // Fallback, should not be reached
     }
 }

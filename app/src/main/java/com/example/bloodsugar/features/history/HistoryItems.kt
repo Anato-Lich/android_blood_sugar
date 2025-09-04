@@ -20,8 +20,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.example.bloodsugar.database.ActivityRecord
+import com.example.bloodsugar.database.ActivityType
 import com.example.bloodsugar.database.BloodSugarRecord
 import com.example.bloodsugar.database.EventRecord
+import com.example.bloodsugar.database.EventType
 import com.example.bloodsugar.domain.SugarLevelCategory
 import com.example.bloodsugar.domain.getSugarLevelCategory
 import java.text.SimpleDateFormat
@@ -36,13 +38,13 @@ fun getValueColor(value: Float, lowColor: Color, inRangeColor: Color, highColor:
     }
 }
 
-private fun getActivityIcon(activityType: String): ImageVector {
+private fun getActivityIcon(activityType: ActivityType): ImageVector {
     return when (activityType) {
-        "Walking" -> Icons.AutoMirrored.Filled.DirectionsWalk
-        "Running" -> Icons.AutoMirrored.Filled.DirectionsRun
-        "Cycling" -> Icons.AutoMirrored.Filled.DirectionsBike
-        "Gym" -> Icons.Default.FitnessCenter
-        else -> Icons.Default.FitnessCenter
+        ActivityType.WALKING -> Icons.AutoMirrored.Filled.DirectionsWalk
+        ActivityType.RUNNING -> Icons.AutoMirrored.Filled.DirectionsRun
+        ActivityType.CYCLING -> Icons.AutoMirrored.Filled.DirectionsBike
+        ActivityType.GYM -> Icons.Default.FitnessCenter
+        ActivityType.OTHER -> Icons.Default.FitnessCenter
     }
 }
 
@@ -125,14 +127,12 @@ fun EventHistoryItem(
     onDelete: () -> Unit
 ) {
     val (color, label, icon) = when (event.type) {
-        "INSULIN" -> Triple(MaterialTheme.colorScheme.secondary, "Insulin", Icons.Default.MedicalServices)
-        "CARBS" -> Triple(MaterialTheme.colorScheme.tertiary, "Carbs", Icons.Default.Restaurant)
-        else -> Triple(Color.Gray, "Unknown Event", Icons.Default.Info)
+        EventType.INSULIN -> Triple(MaterialTheme.colorScheme.secondary, "Insulin", Icons.Default.MedicalServices)
+        EventType.CARBS -> Triple(MaterialTheme.colorScheme.tertiary, "Carbs", Icons.Default.Restaurant)
     }
     val valueText = when(event.type) {
-        "INSULIN" -> "%.1fu".format(event.value)
-        "CARBS" -> "%.1fg".format(event.value)
-        else -> ""
+        EventType.INSULIN -> "%.1fu".format(event.value)
+        EventType.CARBS -> "%.1fg".format(event.value)
     }
 
     Card(
@@ -247,12 +247,12 @@ fun ActivityHistoryItem(activity: ActivityRecord, onDelete: () -> Unit) {
                     Spacer(modifier = Modifier.width(16.dp))
                     Column {
                         Text(
-                            text = activity.type,
+                            text = activity.type.name.lowercase().replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() },
                             style = MaterialTheme.typography.titleLarge,
                             color = color
                         )
                         Text(
-                            text = "${activity.durationMinutes} min (${activity.intensity})",
+                            text = "${activity.durationMinutes} min (${activity.intensity.name.lowercase().replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }})",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

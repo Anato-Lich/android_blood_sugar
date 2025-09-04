@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import com.example.bloodsugar.data.BloodSugarRepository
 import com.example.bloodsugar.database.AppDatabase
 import androidx.lifecycle.viewModelScope
+import com.example.bloodsugar.database.DailyInsulinDose
 import com.example.bloodsugar.domain.TirCalculationUseCase
 import com.example.bloodsugar.domain.TirThresholds
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -39,20 +40,7 @@ class AnalysisViewModel(application: Application) : AndroidViewModel(application
             val dailyInsulinFromDb = repository.getDailyInsulinDoses(startTime, endTime).first()
 
             val tirResult = tirCalculationUseCase(records, TirThresholds.Default)
-
-            // Create a complete list of daily insulin doses for the period
-            val completeDailyInsulin = mutableListOf<com.example.bloodsugar.database.DailyInsulinDose>()
-            val calendar = Calendar.getInstance()
-            calendar.timeInMillis = startTime
-
-            val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-
-            while (calendar.timeInMillis <= endTime) {
-                val dayString = formatter.format(calendar.time)
-                val doseForDay = dailyInsulinFromDb.find { it.day == dayString }?.total ?: 0f
-                completeDailyInsulin.add(com.example.bloodsugar.database.DailyInsulinDose(day = dayString, total = doseForDay))
-                calendar.add(Calendar.DAY_OF_YEAR, 1)
-            }
+            val completeDailyInsulin = createCompleteDailyInsulinList(dailyInsulinFromDb, startTime, endTime)
 
             _uiState.value = AnalysisUiState(
                 timeInRange = tirResult.timeInRange,
@@ -66,5 +54,25 @@ class AnalysisViewModel(application: Application) : AndroidViewModel(application
                 dailyInsulin = completeDailyInsulin
             )
         }
+    }
+
+    private fun createCompleteDailyInsulinList(
+        dailyInsulinFromDb: List<DailyInsulinDose>,
+        startTime: Long,
+        endTime: Long
+    ): List<DailyInsulinDose> {
+        val completeDailyInsulin = mutableListOf<DailyInsulinDose>()
+        val calendar = Calendar.getInstance()
+        calendar.timeInMillis = startTime
+
+        val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+
+        while (calendar.timeInMillis <= endTime) {
+            val dayString = formatter.format(calendar.time)
+            val doseForDay = dailyInsulinFromDb.find { it.day == dayString }?.total ?: 0f
+            completeDailyInsulin.add(DailyInsulinDose(day = dayString, total = doseForDay))
+            calendar.add(Calendar.DAY_OF_YEAR, 1)
+        }
+        return completeDailyInsulin
     }
 }

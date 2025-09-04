@@ -34,9 +34,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.bloodsugar.R
 import com.example.bloodsugar.database.FoodItem
 
 @Composable
@@ -51,7 +53,7 @@ fun FoodScreen(foodViewModel: FoodViewModel = viewModel()) {
                 editingFoodItem = null
                 showDialog = true 
             }) {
-                Icon(Icons.Default.Add, contentDescription = "Add Food")
+                Icon(Icons.Default.Add, contentDescription = stringResource(id = R.string.add_food))
             }
         }
     ) { padding ->
@@ -61,7 +63,7 @@ fun FoodScreen(foodViewModel: FoodViewModel = viewModel()) {
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             item {
-                Text("Food Library", style = MaterialTheme.typography.headlineMedium)
+                Text(stringResource(id = R.string.food_library), style = MaterialTheme.typography.headlineMedium)
                 Spacer(modifier = Modifier.height(8.dp))
             }
             items(foodItems) { item ->
@@ -110,10 +112,10 @@ fun FoodItemRow(foodItem: FoodItem, onEdit: (FoodItem) -> Unit, onDelete: (FoodI
             }
             Row {
                 IconButton(onClick = { onEdit(foodItem) }) {
-                    Icon(Icons.Default.Edit, contentDescription = "Edit Food")
+                    Icon(Icons.Default.Edit, contentDescription = stringResource(id = R.string.edit_food))
                 }
                 IconButton(onClick = { onDelete(foodItem) }) {
-                    Icon(Icons.Default.Delete, contentDescription = "Delete Food")
+                    Icon(Icons.Default.Delete, contentDescription = stringResource(id = R.string.delete_food))
                 }
             }
         }
@@ -132,26 +134,26 @@ fun FoodDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (foodItem == null) "Add Food" else "Edit Food") },
+        title = { Text(if (foodItem == null) stringResource(id = R.string.add_food) else stringResource(id = R.string.edit_food)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Food Name") },
+                    label = { Text(stringResource(id = R.string.food_name)) },
                     singleLine = true
                 )
                 OutlinedTextField(
                     value = servingSize,
                     onValueChange = { servingSize = it },
-                    label = { Text("Serving Size (grams)") },
+                    label = { Text(stringResource(id = R.string.serving_size_grams)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     singleLine = true
                 )
                 OutlinedTextField(
                     value = carbsPerServing,
                     onValueChange = { carbsPerServing = it },
-                    label = { Text("Carbs per Serving (grams)") },
+                    label = { Text(stringResource(id = R.string.carbs_per_serving_grams)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     singleLine = true
                 )
@@ -162,12 +164,12 @@ fun FoodDialog(
                 onClick = { onConfirm(foodItem?.id ?: 0, name, servingSize, carbsPerServing) },
                 enabled = name.isNotBlank() && servingSize.isNotBlank() && carbsPerServing.isNotBlank()
             ) {
-                Text(if (foodItem == null) "Add" else "Save")
+                Text(if (foodItem == null) stringResource(id = R.string.add) else stringResource(id = R.string.save))
             }
         },
         dismissButton = {
             Button(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(id = R.string.cancel))
             }
         }
     )

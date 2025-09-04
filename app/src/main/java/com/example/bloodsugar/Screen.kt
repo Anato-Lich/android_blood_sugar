@@ -1,12 +1,12 @@
 package com.example.bloodsugar
 
 import androidx.annotation.DrawableRes
-import com.example.bloodsugar.R
+import androidx.annotation.StringRes
 
-sealed class Screen(val route: String, @DrawableRes val icon: Int) {
-    object Home : Screen("Home", R.drawable.ic_home)
-    object Notifications : Screen("Notifications", R.drawable.ic_notifications)
-    object Calculator : Screen("Calculator", R.drawable.ic_calculator)
-    object Food : Screen("Food", R.drawable.ic_food_menu)
-    object Analysis : Screen("Analysis", R.drawable.ic_calculator) // Using placeholder icon
+sealed class Screen(val route: String, @StringRes val label: Int, @DrawableRes val icon: Int) {
+    object Home : Screen("home", R.string.screen_home, R.drawable.ic_home)
+    object Notifications : Screen("notifications", R.string.screen_notifications, R.drawable.ic_notifications)
+    object Calculator : Screen("calculator", R.string.screen_calculator, R.drawable.ic_calculator)
+    object Food : Screen("food", R.string.screen_food, R.drawable.ic_food_menu)
+    object Analysis : Screen("analysis", R.string.screen_analysis, R.drawable.ic_calculator) // Using placeholder icon
 }

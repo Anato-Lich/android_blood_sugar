@@ -1,78 +1,175 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:padding="8dp">
+    android:orientation="vertical"
+    android:paddingTop="8dp"
+    android:paddingBottom="8dp"
+    android:paddingStart="16dp"
+    android:paddingEnd="16dp">
 
+    <!-- Top Row: Main Info + Action Button -->
     <LinearLayout
-        android:id="@+id/stats_container"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_alignParentEnd="true"
-        android:layout_centerVertical="true"
-        android:layout_marginStart="8dp"
+        android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:gravity="center_vertical">
+        android:layout_marginBottom="8dp">
 
-        <LinearLayout
+        <TextView
+            android:id="@+id/notification_text"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textAppearance="@style/TextAppearance.Compat.Notification.Title"
+            android:textSize="14sp"
+            android:maxLines="2"
+            android:ellipsize="end"
+            tools:text="Next: Check sugar in 45 min" />
+
+        <TextView
+            android:id="@+id/notification_log_sugar_button"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:gravity="center_horizontal"
-            android:layout_marginEnd="8dp">
+            android:paddingStart="12dp"
+            android:paddingTop="6dp"
+            android:paddingEnd="12dp"
+            android:paddingBottom="6dp"
+            android:text="LOG"
+            android:textColor="#2196F3"
+            android:textAppearance="@style/TextAppearance.Compat.Notification.Info"
+            android:textStyle="bold"
+            android:background="?android:attr/selectableItemBackground"
+            android:layout_marginStart="8dp" />
+
+    </LinearLayout>
+
+    <!-- Mini Chart -->
+    <ImageView
+        android:id="@+id/notification_chart"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:layout_marginTop="4dp"
+        android:layout_marginBottom="8dp"
+        tools:src="@android:color/darker_gray" />
+
+    <!-- Bottom Row: Metrics -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:baselineAligned="false"
+        android:orientation="horizontal">
+
+        <!-- Last Value + Trend -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1.3"
+            android:gravity="center"
+            android:orientation="vertical">
 
             <TextView
-                android:id="@+id/notification_average_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Last"
+                android:textAppearance="@style/TextAppearance.Compat.Notification.Info"
+                android:textSize="12sp"
+                android:textColor="#666666" />
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/notification_last"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textAppearance="@style/TextAppearance.Compat.Notification.Title"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    tools:text="10.2" />
+
+                <TextView
+                    android:id="@+id/notification_trend"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:textAppearance="@style/TextAppearance.Compat.Notification.Title"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    tools:text="↑" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Vertical Divider -->
+        <ImageView
+            android:layout_width="1dp"
+            android:layout_height="match_parent"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="4dp"
+            android:background="#CCCCCC" />
+
+        <!-- Average -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Avg"
-                android:textAppearance="@style/TextAppearance.Compat.Notification.Info" />
+                android:textAppearance="@style/TextAppearance.Compat.Notification.Info"
+                android:textSize="12sp"
+                android:textColor="#666666" />
 
             <TextView
                 android:id="@+id/notification_average"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textAppearance="@android:style/TextAppearance.DeviceDefault.Large"
-                android:textSize="28sp"
+                android:textAppearance="@style/TextAppearance.Compat.Notification.Title"
+                android:textSize="16sp"
+                android:textStyle="bold"
                 tools:text="7.8" />
         </LinearLayout>
 
+        <!-- Vertical Divider -->
+        <ImageView
+            android:layout_width="1dp"
+            android:layout_height="match_parent"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="4dp"
+            android:background="#CCCCCC" />
+
+        <!-- Min/Max -->
         <LinearLayout
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
             android:orientation="vertical">
 
             <TextView
-                android:id="@+id/notification_last"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:text="Range"
                 android:textAppearance="@style/TextAppearance.Compat.Notification.Info"
-                tools:text="Last: 10.2" />
+                android:textSize="12sp"
+                android:textColor="#666666" />
 
             <TextView
-                android:id="@+id/notification_min"
+                android:id="@+id/notification_min_max"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textAppearance="@style/TextAppearance.Compat.Notification.Info"
-                tools:text="Min: 4.5" />
-
-            <TextView
-                android:id="@+id/notification_max"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textAppearance="@style/TextAppearance.Compat.Notification.Info"
-                tools:text="Max: 12.1" />
+                android:textAppearance="@style/TextAppearance.Compat.Notification.Title"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                tools:text="4.5-12.1" />
         </LinearLayout>
     </LinearLayout>
-
-    <TextView
-        android:id="@+id/notification_text"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_toStartOf="@id/stats_container"
-        android:layout_centerVertical="true"
-        android:textAppearance="@style/TextAppearance.Compat.Notification.Info"
-        tools:text="Next: Check sugar at 14:00" />
-
-</RelativeLayout>
+</LinearLayout>

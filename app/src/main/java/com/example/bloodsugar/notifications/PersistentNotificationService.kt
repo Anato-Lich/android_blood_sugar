@@ -3,6 +3,12 @@ package com.example.bloodsugar.notifications
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.Path
+import android.graphics.PorterDuff
+import android.graphics.PorterDuffXfermode
 import android.app.Service
 import android.content.Intent
 import android.os.Build
@@ -15,10 +21,15 @@ import com.example.bloodsugar.R
 import com.example.bloodsugar.data.BloodSugarRepository
 import com.example.bloodsugar.data.SettingsDataStore
 import com.example.bloodsugar.database.AppDatabase
+import com.example.bloodsugar.database.EventType
 import com.example.bloodsugar.database.NotificationSetting
 import com.example.bloodsugar.database.NotificationSettingDao
-import com.example.bloodsugar.domain.TirThresholds
+import com.example.bloodsugar.database.NotificationType
+import com.example.bloodsugar.domain.NotificationTimeCalculator
 import com.example.bloodsugar.domain.SugarLevelCategory
+import com.example.bloodsugar.domain.TirThresholds
+import com.example.bloodsugar.domain.Trend
+import com.example.bloodsugar.domain.TrendCalculationUseCase
 import com.example.bloodsugar.domain.getSugarLevelCategory
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -29,7 +40,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
@@ -38,6 +48,7 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.TimeUnit
+import androidx.core.graphics.createBitmap
 
 class PersistentNotificationService : Service() {
 
@@ -60,6 +71,10 @@ class PersistentNotificationService : Service() {
         SettingsDataStore(this)
     }
 
+    private val trendCalculationUseCase: TrendCalculationUseCase by lazy {
+        TrendCalculationUseCase()
+    }
+
     private fun tickerFlow(period: Long, initialDelay: Long = 0L) = flow {
         delay(initialDelay)
         while (true) {
@@ -70,7 +85,7 @@ class PersistentNotificationService : Service() {
 
     @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        startForeground(1, createNotification(null, null, null, null, null).build())
+        startForeground(1, createNotification(null, null, null, null, null, null, null).build())
 
         scope.launch {
             val dataFlow = tickerFlow(TimeUnit.MINUTES.toMillis(1)).flatMapLatest {
@@ -91,7 +106,7 @@ class PersistentNotificationService : Service() {
                 val nextScheduledReminder = getClosestNotifications(notifications).firstOrNull()
                 val nextScheduledReminderTime = nextScheduledReminder?.let { getNextExecutionTime(it) }
 
-                val lastCarbEvent = dailyEvents.filter { it.type == "CARBS" }.maxByOrNull { it.timestamp }
+                val lastCarbEvent = dailyEvents.filter { it.type == EventType.CARBS }.maxByOrNull { it.timestamp }
                 var postMealCheckTime: Long? = null
                 if (lastCarbEvent != null && postMealEnabled) {
                     val checkTime = lastCarbEvent.timestamp + TimeUnit.MINUTES.toMillis(postMealDelay.toLong())
@@ -113,8 +128,10 @@ class PersistentNotificationService : Service() {
                 val lastValue = dailyRecords.maxByOrNull { it.timestamp }?.value
                 val minValue = dailyRecords.minOfOrNull { it.value }
                 val maxValue = dailyRecords.maxOfOrNull { it.value }
+                val trend = trendCalculationUseCase.calculateTrend(dailyRecords)
+                val chartBitmap = generateChartBitmap(dailyRecords)
 
-                notificationManager.notify(1, createNotification(nextNotificationText, dailyAverage, lastValue, minValue, maxValue).build())
+                notificationManager.notify(1, createNotification(nextNotificationText, dailyAverage, lastValue, minValue, maxValue, trend, chartBitmap).build())
             }.debounce(500L).collect()
         }
 
@@ -130,65 +147,12 @@ class PersistentNotificationService : Service() {
         return notificationsWithNextTime.filter { it.second == minTime }.map { it.first }
     }
 
-    private fun calculateNextIntervalTimestamp(intervalMinutes: Int, startTimeStr: String, endTimeStr: String): Long {
-        val now = Calendar.getInstance()
-        val (startHour, startMinute) = startTimeStr.split(":").map { it.toInt() }
-
-        // 1. Find an "anchor" time. This is the most recent startTime.
-        val anchor = Calendar.getInstance().apply {
-            set(Calendar.HOUR_OF_DAY, startHour)
-            set(Calendar.MINUTE, startMinute)
-            set(Calendar.SECOND, 0)
-            set(Calendar.MILLISECOND, 0)
-        }
-        if (anchor.after(now)) {
-            anchor.add(Calendar.DAY_OF_YEAR, -1)
-        }
-
-        // 2. Start generating ticks from the anchor and find the first one after `now`.
-        val nextTrigger = anchor.clone() as Calendar
-        while (nextTrigger.timeInMillis <= now.timeInMillis) {
-            nextTrigger.add(Calendar.MINUTE, intervalMinutes)
-        }
-
-        // 3. Now we have the first potential trigger time. Check if it's in a valid window.
-        // Loop until we find a valid one.
-        for (i in 0..(1440 / intervalMinutes.coerceAtLeast(1))) { // Limit loop to one day's worth of intervals
-            if (isTimeInWindow(startTimeStr, endTimeStr, nextTrigger)) {
-                return nextTrigger.timeInMillis // Found it.
-            }
-            // If not, advance to the next tick and check again.
-            nextTrigger.add(Calendar.MINUTE, intervalMinutes)
-        }
-
-        return -1L // Fallback, should not be reached
-    }
-
-    private fun isTimeInWindow(startTime: String, endTime: String, calendar: Calendar = Calendar.getInstance()): Boolean {
-        val currentHour = calendar.get(Calendar.HOUR_OF_DAY)
-        val currentMinute = calendar.get(Calendar.MINUTE)
-
-        val (startHour, startMinute) = startTime.split(":").map { it.toInt() }
-        val (endHour, endMinute) = endTime.split(":").map { it.toInt() }
-
-        val startTimeInMinutes = startHour * 60 + startMinute
-        val originalEndTimeInMinutes = endHour * 60 + endMinute
-        val endTimeInMinutesWithBuffer = originalEndTimeInMinutes + 1
-        val currentTimeInMinutes = currentHour * 60 + currentMinute
-
-        return if (startTimeInMinutes <= originalEndTimeInMinutes) {
-            currentTimeInMinutes >= startTimeInMinutes && currentTimeInMinutes < endTimeInMinutesWithBuffer
-        } else { // Overnight case
-            currentTimeInMinutes >= startTimeInMinutes || currentTimeInMinutes < endTimeInMinutesWithBuffer
-        }
-    }
-
     private fun getNextExecutionTime(setting: NotificationSetting): Long {
         return when (setting.type) {
-            "daily" -> {
+            NotificationType.DAILY -> {
+                val timeParts = setting.time.split(":")
                 val now = Calendar.getInstance()
                 val target = Calendar.getInstance()
-                val timeParts = setting.time.split(":")
                 target.set(Calendar.HOUR_OF_DAY, timeParts[0].toInt())
                 target.set(Calendar.MINUTE, timeParts[1].toInt())
                 target.set(Calendar.SECOND, 0)
@@ -198,11 +162,10 @@ class PersistentNotificationService : Service() {
                 }
                 target.timeInMillis
             }
-            "interval" -> {
+            NotificationType.INTERVAL -> {
                 if (setting.startTime == null || setting.endTime == null) return Long.MAX_VALUE
-                calculateNextIntervalTimestamp(setting.intervalMinutes, setting.startTime, setting.endTime)
+                NotificationTimeCalculator.calculateNextIntervalTimestamp(setting.intervalMinutes, setting.startTime, setting.endTime)
             }
-            else -> Long.MAX_VALUE
         }
     }
 
@@ -222,7 +185,9 @@ class PersistentNotificationService : Service() {
         dailyAverage: Float?,
         lastValue: Float?,
         minValue: Float?,
-        maxValue: Float?
+        maxValue: Float?,
+        trend: Trend?,
+        chartBitmap: Bitmap?
     ): NotificationCompat.Builder {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel("persistent_notification_channel", "Persistent Notification", NotificationManager.IMPORTANCE_MIN)
@@ -240,40 +205,68 @@ class PersistentNotificationService : Service() {
         // Create RemoteViews
         val remoteViews = RemoteViews(packageName, R.layout.notification_persistent)
 
-        remoteViews.setTextViewText(R.id.notification_text, nextNotificationText ?: "No reminders set.")
+        val logSugarIntent = Intent(this, MainActivity::class.java).apply {
+            action = "ACTION_OPEN_LOG_SUGAR_DIALOG"
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
+        val logSugarPendingIntent = PendingIntent.getActivity(this, 1, logSugarIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        remoteViews.setOnClickPendingIntent(R.id.notification_log_sugar_button, logSugarPendingIntent)
 
+        // Set main notification text
+        remoteViews.setTextViewText(R.id.notification_text, nextNotificationText ?: "No reminders set.")
+        remoteViews.setTextColor(R.id.notification_text, android.graphics.Color.BLACK)
+
+        // Set average value
         if (dailyAverage != null) {
             remoteViews.setTextViewText(R.id.notification_average, "%.1f".format(dailyAverage))
             remoteViews.setTextColor(R.id.notification_average, getValueColor(dailyAverage))
-            remoteViews.setViewVisibility(R.id.notification_average_label, View.VISIBLE)
             remoteViews.setViewVisibility(R.id.notification_average, View.VISIBLE)
         } else {
-            remoteViews.setViewVisibility(R.id.notification_average_label, View.GONE)
-            remoteViews.setViewVisibility(R.id.notification_average, View.GONE)
+            remoteViews.setTextViewText(R.id.notification_average, "--")
+            remoteViews.setTextColor(R.id.notification_average, android.graphics.Color.GRAY)
         }
 
+        // Set last value and trend
         if (lastValue != null) {
-            remoteViews.setTextViewText(R.id.notification_last, "Last: ${"%.1f".format(lastValue)}")
+            remoteViews.setTextViewText(R.id.notification_last, "%.1f".format(lastValue))
             remoteViews.setTextColor(R.id.notification_last, getValueColor(lastValue))
-            remoteViews.setViewVisibility(R.id.notification_last, View.VISIBLE)
+
+            if (trend != null) {
+                val (arrowText, textColor) = when {
+                    trend.rateOfChange > 2.5f -> "↑" to 0xFFD32F2F.toInt() // ErrorRed - Rapid increase
+                    trend.rateOfChange > 0.8f -> "↗" to 0xFFFFA726.toInt() // TertiaryOrange - Moderate increase
+                    trend.rateOfChange < -2.5f -> "↓" to 0xFF2196F3.toInt() // SecondaryBlue - Rapid decrease
+                    trend.rateOfChange < -0.8f -> "↘" to 0xFF2196F3.toInt() // SecondaryBlue - Moderate decrease
+                    else -> "→" to getValueColor(lastValue) // Stable
+                }
+                remoteViews.setTextViewText(R.id.notification_trend, arrowText)
+                remoteViews.setTextColor(R.id.notification_trend, textColor)
+                remoteViews.setViewVisibility(R.id.notification_trend, View.VISIBLE)
+            } else {
+                remoteViews.setViewVisibility(R.id.notification_trend, View.GONE)
+            }
         } else {
-            remoteViews.setViewVisibility(R.id.notification_last, View.GONE)
+            remoteViews.setTextViewText(R.id.notification_last, "--")
+            remoteViews.setTextColor(R.id.notification_last, android.graphics.Color.GRAY)
+            remoteViews.setViewVisibility(R.id.notification_trend, View.GONE)
         }
 
-        if (minValue != null) {
-            remoteViews.setTextViewText(R.id.notification_min, "Min: ${"%.1f".format(minValue)}")
-            remoteViews.setTextColor(R.id.notification_min, getValueColor(minValue))
-            remoteViews.setViewVisibility(R.id.notification_min, View.VISIBLE)
+        // Set min/max range
+        if (minValue != null && maxValue != null) {
+            remoteViews.setTextViewText(R.id.notification_min_max, "%.1f-%.1f".format(minValue, maxValue))
+            remoteViews.setTextColor(R.id.notification_min_max, android.graphics.Color.BLACK)
+            remoteViews.setViewVisibility(R.id.notification_min_max, View.VISIBLE)
         } else {
-            remoteViews.setViewVisibility(R.id.notification_min, View.GONE)
+            remoteViews.setTextViewText(R.id.notification_min_max, "--")
+            remoteViews.setTextColor(R.id.notification_min_max, android.graphics.Color.GRAY)
         }
 
-        if (maxValue != null) {
-            remoteViews.setTextViewText(R.id.notification_max, "Max: ${"%.1f".format(maxValue)}")
-            remoteViews.setTextColor(R.id.notification_max, getValueColor(maxValue))
-            remoteViews.setViewVisibility(R.id.notification_max, View.VISIBLE)
+        // Set chart
+        if (chartBitmap != null) {
+            remoteViews.setImageViewBitmap(R.id.notification_chart, chartBitmap)
+            remoteViews.setViewVisibility(R.id.notification_chart, View.VISIBLE)
         } else {
-            remoteViews.setViewVisibility(R.id.notification_max, View.GONE)
+            remoteViews.setImageViewResource(R.id.notification_chart, android.R.color.transparent)
         }
 
         return NotificationCompat.Builder(this, "persistent_notification_channel")
@@ -284,6 +277,7 @@ class PersistentNotificationService : Service() {
             .setContentIntent(pendingIntent)
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_MIN)
+            .setOnlyAlertOnce(true)
     }
 
 
@@ -294,5 +288,68 @@ class PersistentNotificationService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         job.cancel()
+    }
+
+    private fun generateChartBitmap(records: List<com.example.bloodsugar.database.BloodSugarRecord>): Bitmap? {
+        if (records.size < 2) return null
+
+        val width = 300 // width in pixels
+        val height = 100 // height in pixels
+        val padding = 10f
+
+        val bitmap = createBitmap(width, height)
+        val canvas = Canvas(bitmap)
+
+        val sortedRecords = records.sortedBy { it.timestamp }
+        val minTime = sortedRecords.first().timestamp
+        val maxTime = sortedRecords.last().timestamp
+        val timeRange = (maxTime - minTime).toFloat().coerceAtLeast(1f)
+
+        val minValue = sortedRecords.minOf { it.value }.coerceAtMost(TirThresholds.Default.low - 1)
+        val maxValue = sortedRecords.maxOf { it.value }.coerceAtLeast(TirThresholds.Default.high + 1)
+        val valueRange = (maxValue - minValue).coerceAtLeast(1f)
+
+        val path = Path()
+        val fillPath = Path()
+
+        val paint = Paint().apply {
+            color = 0xFF4CAF50.toInt() // PrimaryGreen
+            strokeWidth = 3f
+            style = Paint.Style.STROKE
+            isAntiAlias = true
+        }
+
+        val fillPaint = Paint().apply {
+            style = Paint.Style.FILL
+            isAntiAlias = true
+            xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_OVER)
+        }
+
+        sortedRecords.forEachIndexed { i, record ->
+            val x = padding + ((record.timestamp - minTime) / timeRange) * (width - 2 * padding)
+            val y = (height - padding) - ((record.value - minValue) / valueRange) * (height - 2 * padding)
+
+            if (i == 0) {
+                path.moveTo(x, y)
+                fillPath.moveTo(x, height.toFloat())
+                fillPath.lineTo(x, y)
+            } else {
+                path.lineTo(x, y)
+                fillPath.lineTo(x, y)
+            }
+
+            if (i == sortedRecords.size - 1) {
+                fillPath.lineTo(x, height.toFloat())
+                fillPath.close()
+            }
+        }
+
+        val gradient = android.graphics.LinearGradient(0f, 0f, 0f, height.toFloat(), 0x804CAF50.toInt(), 0x004CAF50.toInt(), android.graphics.Shader.TileMode.CLAMP)
+        fillPaint.shader = gradient
+        canvas.drawPath(fillPath, fillPaint)
+
+        canvas.drawPath(path, paint)
+
+        return bitmap
     }
 }

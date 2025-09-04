@@ -14,6 +14,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.background
+import androidx.compose.ui.res.stringResource
+import com.example.bloodsugar.R
 
 @Composable
 fun AnalysisScreen(analysisViewModel: AnalysisViewModel = viewModel()) {
@@ -29,13 +31,13 @@ fun AnalysisScreen(analysisViewModel: AnalysisViewModel = viewModel()) {
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = { analysisViewModel.updateAnalysisPeriod(7) }, enabled = uiState.selectedPeriod != 7) {
-                Text("7 Days")
+                Text(stringResource(id = R.string.analysis_7_days))
             }
             Button(onClick = { analysisViewModel.updateAnalysisPeriod(30) }, enabled = uiState.selectedPeriod != 30) {
-                Text("30 Days")
+                Text(stringResource(id = R.string.analysis_30_days))
             }
             Button(onClick = { analysisViewModel.updateAnalysisPeriod(90) }, enabled = uiState.selectedPeriod != 90) {
-                Text("90 Days")
+                Text(stringResource(id = R.string.analysis_90_days))
             }
         }
 
@@ -43,7 +45,7 @@ fun AnalysisScreen(analysisViewModel: AnalysisViewModel = viewModel()) {
 
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Daily Insulin Intake", style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(id = R.string.analysis_daily_insulin_intake), style = MaterialTheme.typography.titleMedium)
                 Spacer(modifier = Modifier.height(16.dp))
                 InsulinBarChart(dailyDoses = uiState.dailyInsulin)
             }
@@ -55,7 +57,7 @@ fun AnalysisScreen(analysisViewModel: AnalysisViewModel = viewModel()) {
 fun TirCard(uiState: AnalysisUiState) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("Distribution", style = MaterialTheme.typography.titleMedium, modifier = Modifier.align(Alignment.CenterHorizontally))
+            Text(stringResource(id = R.string.analysis_distribution), style = MaterialTheme.typography.titleMedium, modifier = Modifier.align(Alignment.CenterHorizontally))
             Spacer(modifier = Modifier.height(4.dp))
 
             val totalPercentage = uiState.veryHigh + uiState.high + uiState.timeInRange + uiState.low + uiState.veryLow
@@ -103,17 +105,17 @@ fun TirCard(uiState: AnalysisUiState) {
                     }
                 }
             } else {
-                Text("Log at least two blood sugar readings to see your Time in Range analysis.", modifier = Modifier.align(Alignment.CenterHorizontally))
+                Text(stringResource(id = R.string.analysis_no_data), modifier = Modifier.align(Alignment.CenterHorizontally))
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
             // Display percentages below the bar
-            TirPercentageRow("Very High", uiState.veryHigh, MaterialTheme.colorScheme.error.copy(alpha = 0.7f))
-            TirPercentageRow("High", uiState.high, MaterialTheme.colorScheme.error.copy(alpha = 0.4f))
-            TirPercentageRow("In Range", uiState.timeInRange, MaterialTheme.colorScheme.primary)
-            TirPercentageRow("Low", uiState.low, MaterialTheme.colorScheme.secondary.copy(alpha = 0.4f))
-            TirPercentageRow("Very Low", uiState.veryLow, MaterialTheme.colorScheme.secondary.copy(alpha = 0.7f))
+            TirPercentageRow(stringResource(id = R.string.analysis_very_high), uiState.veryHigh, MaterialTheme.colorScheme.error.copy(alpha = 0.7f))
+            TirPercentageRow(stringResource(id = R.string.analysis_high), uiState.high, MaterialTheme.colorScheme.error.copy(alpha = 0.4f))
+            TirPercentageRow(stringResource(id = R.string.analysis_in_range), uiState.timeInRange, MaterialTheme.colorScheme.primary)
+            TirPercentageRow(stringResource(id = R.string.analysis_low), uiState.low, MaterialTheme.colorScheme.secondary.copy(alpha = 0.4f))
+            TirPercentageRow(stringResource(id = R.string.analysis_very_low), uiState.veryLow, MaterialTheme.colorScheme.secondary.copy(alpha = 0.7f))
         }
     }
 }

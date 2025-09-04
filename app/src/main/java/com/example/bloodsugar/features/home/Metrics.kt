@@ -23,8 +23,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.example.bloodsugar.R
 
 @Composable
 fun TirBar(uiState: HomeUiState, modifier: Modifier = Modifier) {
@@ -36,7 +38,7 @@ fun TirBar(uiState: HomeUiState, modifier: Modifier = Modifier) {
                 .height(16.dp),
             verticalAlignment = Alignment.CenterVertically) {
             Text(
-                "No data in selected period",
+                stringResource(id = R.string.home_no_data_in_period),
                 modifier = Modifier.fillMaxWidth(),
                 textAlign = TextAlign.Center,
                 style = MaterialTheme.typography.titleMedium,
@@ -54,7 +56,7 @@ fun TirBar(uiState: HomeUiState, modifier: Modifier = Modifier) {
     ) {
         Column {
             Text(
-                "Time In Range",
+                stringResource(id = R.string.home_time_in_range),
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             )
@@ -103,7 +105,7 @@ fun TirBar(uiState: HomeUiState, modifier: Modifier = Modifier) {
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Text(
-                        "Low",
+                        stringResource(id = R.string.home_tir_low),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.secondary
                     )
@@ -117,7 +119,7 @@ fun TirBar(uiState: HomeUiState, modifier: Modifier = Modifier) {
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        "Normal",
+                        stringResource(id = R.string.home_tir_normal),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.primary
                     )
@@ -131,7 +133,7 @@ fun TirBar(uiState: HomeUiState, modifier: Modifier = Modifier) {
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        "High",
+                        stringResource(id = R.string.home_tir_high),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.error
                     )
@@ -189,7 +191,7 @@ fun Hba1cMetric(value: String, modifier: Modifier = Modifier) {
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                Text("Est. HbA1c", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(id = R.string.home_est_hba1c), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = value,
@@ -198,7 +200,7 @@ fun Hba1cMetric(value: String, modifier: Modifier = Modifier) {
                 )
             }
             Text(
-                "An estimate based on your 90-day average. Consult a doctor for official results.",
+                stringResource(id = R.string.home_hba1c_disclaimer),
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.weight(1.5f)
             )
@@ -240,8 +242,8 @@ fun CarbsProgressMetric(consumed: Float, goal: Float, modifier: Modifier = Modif
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.Center
             ) {
-                Text("Daily Carb Goal", style = MaterialTheme.typography.titleMedium)
-                Text("Goal: ${goal.toInt()}g", style = MaterialTheme.typography.bodyMedium)
+                Text(stringResource(id = R.string.home_daily_carb_goal), style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(id = R.string.home_carb_goal_progress, goal.toInt()), style = MaterialTheme.typography.bodyMedium)
             }
         }
     }
@@ -259,7 +261,7 @@ fun AvgDailyInsulinMetric(value: Float?, modifier: Modifier = Modifier) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Text("Avg. Daily Insulin", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(id = R.string.home_avg_daily_insulin), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(modifier = Modifier.height(8.dp))
             if (value != null) {
                 Text(
@@ -268,12 +270,12 @@ fun AvgDailyInsulinMetric(value: Float?, modifier: Modifier = Modifier) {
                     color = MaterialTheme.colorScheme.primary
                 )
                 Text(
-                    text = "last 7 days",
+                    text = stringResource(id = R.string.home_last_7_days),
                     style = MaterialTheme.typography.bodySmall
                 )
             } else {
                 Text(
-                    text = "N/A",
+                    text = stringResource(id = R.string.home_na),
                     style = MaterialTheme.typography.headlineMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

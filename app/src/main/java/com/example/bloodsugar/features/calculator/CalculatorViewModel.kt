@@ -7,12 +7,12 @@ import com.example.bloodsugar.data.BloodSugarRepository
 import com.example.bloodsugar.data.SettingsDataStore
 import com.example.bloodsugar.database.AppDatabase
 import com.example.bloodsugar.database.FoodItem
+import com.example.bloodsugar.domain.InsulinCarbCalculatorUseCase
 import com.example.bloodsugar.domain.MealComponent
 import com.example.bloodsugar.domain.MealType
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -46,6 +46,7 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
 
     private val settingsDataStore = SettingsDataStore(application)
     private val repository: BloodSugarRepository
+    private val calculatorUseCase = InsulinCarbCalculatorUseCase(settingsDataStore)
 
     private val _uiState = MutableStateFlow(CalculatorUiState())
     val uiState: StateFlow<CalculatorUiState> = _uiState.asStateFlow()
@@ -169,25 +170,8 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
     fun calculateDose(mealType: MealType) {
         viewModelScope.launch {
             val totalCarbs = _uiState.value.components.sumOf { it.carbs.toDouble() }.toFloat()
-            if (totalCarbs == 0f) {
-                _uiState.update { it.copy(insulinDose = 0f) }
-                return@launch
-            }
-
-            val coefficient = getCoefficientForMeal(mealType)
-            val carbsPerBu = settingsDataStore.carbsPerBu.first()
-            if (carbsPerBu == 0f) return@launch
-
-            val breadUnits = totalCarbs / carbsPerBu
-            val insulin = breadUnits * coefficient
-
-            val accuracy = settingsDataStore.insulinDoseAccuracy.first()
-            if (accuracy > 0f) {
-                val roundedInsulin = (kotlin.math.ceil(insulin / accuracy) * accuracy)
-                _uiState.update { it.copy(insulinDose = roundedInsulin) }
-            } else {
-                _uiState.update { it.copy(insulinDose = insulin) }
-            }
+            val dose = calculatorUseCase.calculateDose(totalCarbs, mealType)
+            _uiState.update { it.copy(insulinDose = dose) }
         }
     }
 
@@ -281,12 +265,9 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
 
     fun calculateCarbs(mealType: MealType) {
         viewModelScope.launch {
-            val coefficient = getCoefficientForMeal(mealType)
-            if (coefficient == 0f) return@launch
-            val carbsPerBu = settingsDataStore.carbsPerBu.first()
             val insulinDose = _uiState.value.insulinDoseForCarbs.replace(',', '.').toFloatOrNull() ?: 0f
-            val breadUnits = insulinDose / coefficient
-            _uiState.update { it.copy(calculatedCarbs = breadUnits * carbsPerBu) }
+            val carbs = calculatorUseCase.calculateCarbs(insulinDose, mealType)
+            _uiState.update { it.copy(calculatedCarbs = carbs) }
         }
     }
 
@@ -296,25 +277,14 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
 
     fun calculateRemainingCarbs(mealType: MealType) {
         viewModelScope.launch {
-            val coefficient = getCoefficientForMeal(mealType)
-            if (coefficient == 0f) return@launch
-            val carbsPerBu = settingsDataStore.carbsPerBu.first()
             val insulinDose = _uiState.value.insulinDoseForRemainingCarbs.replace(',', '.').toFloatOrNull() ?: 0f
             val plannedCarbs = _uiState.value.remainingCarbsComponents.sumOf { it.carbs.toDouble() }.toFloat()
-            val totalBreadUnits = insulinDose / coefficient
-            val totalCarbs = totalBreadUnits * carbsPerBu
+            val remaining = calculatorUseCase.calculateRemainingCarbs(insulinDose, plannedCarbs, mealType)
+            val totalCarbs = plannedCarbs + remaining
             _uiState.update { it.copy(
-                remainingCarbs = totalCarbs - plannedCarbs,
+                remainingCarbs = remaining,
                 totalCarbsForDose = totalCarbs
             ) }
-        }
-    }
-
-    private suspend fun getCoefficientForMeal(mealType: MealType): Float {
-        return when (mealType) {
-            MealType.BREAKFAST -> settingsDataStore.breakfastCoefficient.first()
-            MealType.DINNER -> settingsDataStore.dinnerCoefficient.first()
-            MealType.SUPPER -> settingsDataStore.supperCoefficient.first()
         }
     }
 }

@@ -41,8 +41,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.example.bloodsugar.R
 import com.example.bloodsugar.database.ActivityRecord
 import com.example.bloodsugar.database.BloodSugarRecord
 import com.example.bloodsugar.database.EventRecord
@@ -142,12 +144,12 @@ fun HomeScreen(
                 horizontalArrangement = Arrangement.SpaceAround
             ) {
                 if (uiState.chartData != null) {
-                    Metric("Min", uiState.chartData!!.min)
-                    Metric("Avg", uiState.chartData!!.avg)
-                    Metric("Max", uiState.chartData!!.max)
+                    Metric(stringResource(id = R.string.home_metric_min), uiState.chartData!!.min)
+                    Metric(stringResource(id = R.string.home_metric_avg), uiState.chartData!!.avg)
+                    Metric(stringResource(id = R.string.home_metric_max), uiState.chartData!!.max)
                 } else {
                     Text(
-                        "Log a blood sugar reading to see your metrics.",
+                        stringResource(id = R.string.home_no_metrics),
                         modifier = Modifier.padding(16.dp),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -211,30 +213,30 @@ fun HomeScreen(
                 BloodSugarChart(
                     chartData = uiState.chartData,
                     selectedRecord = uiState.selectedRecord,
-                    onRecordClick = homeViewModel::onChartRecordSelected,
-                    onDismissTooltip = homeViewModel::onChartSelectionDismissed,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(250.dp),
+                    onRecordClick = { homeViewModel.onChartRecordSelected(it) },
+                    onDismissTooltip = { homeViewModel.onChartSelectionDismissed() },
                     isScrubbing = isScrubbing,
                     scrubberPosition = scrubberPosition,
                     onScrub = { position ->
                         isScrubbing = true
                         scrubberPosition = position
                     },
-                    onScrubEnd = { isScrubbing = false }
+                    onScrubEnd = { isScrubbing = false },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(250.dp)
                 )
 
                 var showFilterMenu by remember { mutableStateOf(false) }
                 Column(modifier = Modifier.align(Alignment.CenterHorizontally).padding(vertical = 8.dp)) {
                     Button(onClick = { showFilterMenu = true }) {
                         val filterText = when (uiState.selectedFilter) {
-                            FilterType.TODAY -> "Today"
-                            FilterType.THREE_DAYS -> "3 Days"
-                            FilterType.SEVEN_DAYS -> "7 Days"
-                            FilterType.CUSTOM -> "Custom"
+                            FilterType.TODAY -> stringResource(id = R.string.home_filter_today)
+                            FilterType.THREE_DAYS -> stringResource(id = R.string.home_filter_3_days)
+                            FilterType.SEVEN_DAYS -> stringResource(id = R.string.home_filter_7_days)
+                            FilterType.CUSTOM -> stringResource(id = R.string.home_filter_custom)
                         }
-                        Text(text = "Filter: $filterText")
+                        Text(text = stringResource(id = R.string.home_filter, filterText))
                     }
                     DropdownMenu(
                         expanded = showFilterMenu,
@@ -246,10 +248,10 @@ fun HomeScreen(
                                 text = {
                                     Text(
                                         text = when (filter) {
-                                            FilterType.TODAY -> "Today"
-                                            FilterType.THREE_DAYS -> "3 Days"
-                                            FilterType.SEVEN_DAYS -> "7 Days"
-                                            FilterType.CUSTOM -> "Custom"
+                                            FilterType.TODAY -> stringResource(id = R.string.home_filter_today)
+                                            FilterType.THREE_DAYS -> stringResource(id = R.string.home_filter_3_days)
+                                            FilterType.SEVEN_DAYS -> stringResource(id = R.string.home_filter_7_days)
+                                            FilterType.CUSTOM -> stringResource(id = R.string.home_filter_custom)
                                         }
                                     )
                                 },
@@ -265,11 +267,11 @@ fun HomeScreen(
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             val dateFormatter = remember { SimpleDateFormat("MMM d, yyyy", Locale.getDefault()) }
                             OutlinedButton(onClick = { showStartDateDialog = true }) {
-                                val text = uiState.customStartDate?.let { dateFormatter.format(Date(it)) } ?: "Start Date"
+                                val text = uiState.customStartDate?.let { dateFormatter.format(Date(it)) } ?: stringResource(id = R.string.home_start_date)
                                 Text(text)
                             }
                             OutlinedButton(onClick = { showEndDateDialog = true }) {
-                                val text = uiState.customEndDate?.let { dateFormatter.format(Date(it)) } ?: "End Date"
+                                val text = uiState.customEndDate?.let { dateFormatter.format(Date(it)) } ?: stringResource(id = R.string.home_end_date)
                                 Text(text)
                             }
                         }
@@ -287,10 +289,10 @@ fun HomeScreen(
                 }
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text("Recent History", style = MaterialTheme.typography.titleMedium, modifier = Modifier.align(Alignment.CenterHorizontally))
+                Text(stringResource(id = R.string.home_recent_history), style = MaterialTheme.typography.titleMedium, modifier = Modifier.align(Alignment.CenterHorizontally))
                 Spacer(modifier = Modifier.height(8.dp))
                 if (uiState.recentHistoryItems.isEmpty()) {
-                    Text("Your recent logs will appear here.", modifier = Modifier.align(Alignment.CenterHorizontally).padding(16.dp))
+                    Text(stringResource(id = R.string.home_no_recent_history), modifier = Modifier.align(Alignment.CenterHorizontally).padding(16.dp))
                 } else {
                     uiState.recentHistoryItems.forEach { item ->
                         when (item) {
@@ -304,7 +306,7 @@ fun HomeScreen(
                         onClick = { navController.navigate("history") },
                         modifier = Modifier.align(Alignment.CenterHorizontally)
                     ) {
-                        Text("View All History")
+                        Text(stringResource(id = R.string.home_view_all_history))
                     }
                 }
             }

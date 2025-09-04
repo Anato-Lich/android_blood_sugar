@@ -3,8 +3,10 @@ package com.example.bloodsugar.data
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -22,55 +24,67 @@ class SettingsDataStore(context: Context) {
         val CARBS_PER_BU = floatPreferencesKey("carbs_per_bu")
         val DAILY_CARBS_GOAL = floatPreferencesKey("daily_carbs_goal")
         val INSULIN_DOSE_ACCURACY = floatPreferencesKey("insulin_dose_accuracy")
-        val POST_MEAL_NOTIFICATION_ENABLED = androidx.datastore.preferences.core.booleanPreferencesKey("post_meal_notification_enabled")
-        val POST_MEAL_NOTIFICATION_DELAY = androidx.datastore.preferences.core.intPreferencesKey("post_meal_notification_delay")
-        val TREND_NOTIFICATION_ENABLED = androidx.datastore.preferences.core.booleanPreferencesKey("trend_notification_enabled")
+        val POST_MEAL_NOTIFICATION_ENABLED = booleanPreferencesKey("post_meal_notification_enabled")
+        val POST_MEAL_NOTIFICATION_DELAY = intPreferencesKey("post_meal_notification_delay")
+        val TREND_NOTIFICATION_ENABLED = booleanPreferencesKey("trend_notification_enabled")
         val TREND_NOTIFICATION_LOW_THRESHOLD = floatPreferencesKey("trend_notification_low_threshold")
         val TREND_NOTIFICATION_HIGH_THRESHOLD = floatPreferencesKey("trend_notification_high_threshold")
+
+        const val BREAKFAST_COEFFICIENT_DEFAULT = 0f
+        const val DINNER_COEFFICIENT_DEFAULT = 0f
+        const val SUPPER_COEFFICIENT_DEFAULT = 0f
+        const val CARBS_PER_BU_DEFAULT = 10f
+        const val DAILY_CARBS_GOAL_DEFAULT = 200f
+        const val INSULIN_DOSE_ACCURACY_DEFAULT = 0.5f
+        const val POST_MEAL_NOTIFICATION_ENABLED_DEFAULT = false
+        const val POST_MEAL_NOTIFICATION_DELAY_DEFAULT = 120
+        const val TREND_NOTIFICATION_ENABLED_DEFAULT = false
+        const val TREND_NOTIFICATION_LOW_THRESHOLD_DEFAULT = 4.0f
+        const val TREND_NOTIFICATION_HIGH_THRESHOLD_DEFAULT = 10.0f
     }
 
     val breakfastCoefficient: Flow<Float> = dataStore.data.map {
-        it[PreferencesKeys.BREAKFAST_COEFFICIENT] ?: 0f
+        it[PreferencesKeys.BREAKFAST_COEFFICIENT] ?: PreferencesKeys.BREAKFAST_COEFFICIENT_DEFAULT
     }
 
     val dinnerCoefficient: Flow<Float> = dataStore.data.map {
-        it[PreferencesKeys.DINNER_COEFFICIENT] ?: 0f
+        it[PreferencesKeys.DINNER_COEFFICIENT] ?: PreferencesKeys.DINNER_COEFFICIENT_DEFAULT
     }
 
     val supperCoefficient: Flow<Float> = dataStore.data.map {
-        it[PreferencesKeys.SUPPER_COEFFICIENT] ?: 0f
+        it[PreferencesKeys.SUPPER_COEFFICIENT] ?: PreferencesKeys.SUPPER_COEFFICIENT_DEFAULT
     }
 
     val carbsPerBu: Flow<Float> = dataStore.data.map {
-        it[PreferencesKeys.CARBS_PER_BU] ?: 10f
+        it[PreferencesKeys.CARBS_PER_BU] ?: PreferencesKeys.CARBS_PER_BU_DEFAULT
     }
 
     val dailyCarbsGoal: Flow<Float> = dataStore.data.map {
-        it[PreferencesKeys.DAILY_CARBS_GOAL] ?: 200f
+        it[PreferencesKeys.DAILY_CARBS_GOAL] ?: PreferencesKeys.DAILY_CARBS_GOAL_DEFAULT
     }
 
     val insulinDoseAccuracy: Flow<Float> = dataStore.data.map {
-        it[PreferencesKeys.INSULIN_DOSE_ACCURACY] ?: 0.5f
+        it[PreferencesKeys.INSULIN_DOSE_ACCURACY] ?: PreferencesKeys.INSULIN_DOSE_ACCURACY_DEFAULT
     }
 
     val postMealNotificationEnabled: Flow<Boolean> = dataStore.data.map {
-        it[PreferencesKeys.POST_MEAL_NOTIFICATION_ENABLED] ?: false
+        it[PreferencesKeys.POST_MEAL_NOTIFICATION_ENABLED] ?: PreferencesKeys.POST_MEAL_NOTIFICATION_ENABLED_DEFAULT
     }
 
     val postMealNotificationDelay: Flow<Int> = dataStore.data.map {
-        it[PreferencesKeys.POST_MEAL_NOTIFICATION_DELAY] ?: 120
+        it[PreferencesKeys.POST_MEAL_NOTIFICATION_DELAY] ?: PreferencesKeys.POST_MEAL_NOTIFICATION_DELAY_DEFAULT
     }
 
     val trendNotificationEnabled: Flow<Boolean> = dataStore.data.map {
-        it[PreferencesKeys.TREND_NOTIFICATION_ENABLED] ?: false
+        it[PreferencesKeys.TREND_NOTIFICATION_ENABLED] ?: PreferencesKeys.TREND_NOTIFICATION_ENABLED_DEFAULT
     }
 
     val trendNotificationLowThreshold: Flow<Float> = dataStore.data.map {
-        it[PreferencesKeys.TREND_NOTIFICATION_LOW_THRESHOLD] ?: 4.0f
+        it[PreferencesKeys.TREND_NOTIFICATION_LOW_THRESHOLD] ?: PreferencesKeys.TREND_NOTIFICATION_LOW_THRESHOLD_DEFAULT
     }
 
     val trendNotificationHighThreshold: Flow<Float> = dataStore.data.map {
-        it[PreferencesKeys.TREND_NOTIFICATION_HIGH_THRESHOLD] ?: 10.0f
+        it[PreferencesKeys.TREND_NOTIFICATION_HIGH_THRESHOLD] ?: PreferencesKeys.TREND_NOTIFICATION_HIGH_THRESHOLD_DEFAULT
     }
 
     suspend fun saveSettings(

@@ -8,6 +8,8 @@ import androidx.lifecycle.viewModelScope
 import androidx.work.*
 import com.example.bloodsugar.database.AppDatabase
 import com.example.bloodsugar.database.NotificationSetting
+import com.example.bloodsugar.database.NotificationType
+import com.example.bloodsugar.domain.NotificationTimeCalculator
 import com.example.bloodsugar.notifications.NotificationWorker
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -76,15 +78,15 @@ class NotificationsViewModel(application: Application) : AndroidViewModel(applic
                     var delayStr = "N/A"
                     if (workInfo.state == WorkInfo.State.ENQUEUED) {
                         val delayMillis = when (setting.type) {
-                            "daily" -> {
+                            NotificationType.DAILY -> {
                                 val timeParts = setting.time.split(":")
                                 val hour = timeParts[0].toLong()
                                 val minute = timeParts[1].toLong()
-                                calculateInitialDelayForDaily(hour, minute)
+                                NotificationTimeCalculator.calculateInitialDelayForDaily(hour, minute)
                             }
-                            "interval" -> {
+                            NotificationType.INTERVAL -> {
                                 if (setting.startTime != null && setting.endTime != null) {
-                                    val nextExecutionTime = calculateNextIntervalTimestamp(setting.intervalMinutes, setting.startTime, setting.endTime)
+                                    val nextExecutionTime = NotificationTimeCalculator.calculateNextIntervalTimestamp(setting.intervalMinutes, setting.startTime, setting.endTime)
                                     if (nextExecutionTime != -1L) {
                                         (nextExecutionTime - System.currentTimeMillis()).coerceAtLeast(0)
                                     } else {
@@ -94,7 +96,6 @@ class NotificationsViewModel(application: Application) : AndroidViewModel(applic
                                     -1L
                                 }
                             }
-                            else -> -1L
                         }
 
                         if (delayMillis != -1L) {
@@ -120,30 +121,30 @@ class NotificationsViewModel(application: Application) : AndroidViewModel(applic
             "notification_id" to setting.id,
             "message" to setting.message,
             "time" to setting.time,
-            "type" to setting.type,
+            "type" to setting.type.name,
             "intervalMinutes" to setting.intervalMinutes,
             "startTime" to setting.startTime,
             "endTime" to setting.endTime
         )
 
         val workRequest = when (setting.type) {
-            "daily" -> {
+            NotificationType.DAILY -> {
                 val timeParts = setting.time.split(":")
                 val hour = timeParts[0].toLong()
                 val minute = timeParts[1].toLong()
-                val initialDelay = calculateInitialDelayForDaily(hour, minute)
+                val initialDelay = NotificationTimeCalculator.calculateInitialDelayForDaily(hour, minute)
                 OneTimeWorkRequestBuilder<NotificationWorker>()
                     .setInitialDelay(initialDelay, TimeUnit.MILLISECONDS)
                     .setInputData(inputData)
                     .addTag(setting.id.toString())
                     .build()
             }
-            "interval" -> {
+            NotificationType.INTERVAL -> {
                 if (setting.startTime == null || setting.endTime == null) {
                     Log.e("NotificationsViewModel", "Cannot schedule interval notification ${setting.id} without start/end time.")
                     null
                 } else {
-                    val nextExecutionTime = calculateNextIntervalTimestamp(setting.intervalMinutes, setting.startTime, setting.endTime)
+                    val nextExecutionTime = NotificationTimeCalculator.calculateNextIntervalTimestamp(setting.intervalMinutes, setting.startTime, setting.endTime)
                     if (nextExecutionTime == -1L) {
                         Log.e("NotificationsViewModel", "Could not calculate next execution time for ${setting.id}. Not scheduling.")
                         null
@@ -157,7 +158,6 @@ class NotificationsViewModel(application: Application) : AndroidViewModel(applic
                     }
                 }
             }
-            else -> null
         }
         workRequest?.let {
             workManager.enqueueUniqueWork(
@@ -170,66 +170,5 @@ class NotificationsViewModel(application: Application) : AndroidViewModel(applic
 
     private fun cancelNotification(setting: NotificationSetting) {
         workManager.cancelAllWorkByTag(setting.id.toString())
-    }
-
-    private fun calculateInitialDelayForDaily(hour: Long, minute: Long): Long {
-        val now = java.util.Calendar.getInstance()
-        val target = java.util.Calendar.getInstance().apply {
-            set(java.util.Calendar.HOUR_OF_DAY, hour.toInt())
-            set(java.util.Calendar.MINUTE, minute.toInt())
-            set(java.util.Calendar.SECOND, 0)
-        }
-        if (target.before(now)) {
-            target.add(java.util.Calendar.DAY_OF_YEAR, 1)
-        }
-        return target.timeInMillis - now.timeInMillis
-    }
-
-    private fun isTimeInWindow(startTime: String, endTime: String, calendar: java.util.Calendar): Boolean {
-        val currentHour = calendar.get(java.util.Calendar.HOUR_OF_DAY)
-        val currentMinute = calendar.get(java.util.Calendar.MINUTE)
-
-        val (startHour, startMinute) = startTime.split(":").map { it.toInt() }
-        val (endHour, endMinute) = endTime.split(":").map { it.toInt() }
-
-        val startTimeInMinutes = startHour * 60 + startMinute
-        val originalEndTimeInMinutes = endHour * 60 + endMinute
-        val endTimeInMinutesWithBuffer = originalEndTimeInMinutes + 1
-        val currentTimeInMinutes = currentHour * 60 + currentMinute
-
-        return if (startTimeInMinutes <= originalEndTimeInMinutes) {
-            currentTimeInMinutes >= startTimeInMinutes && currentTimeInMinutes < endTimeInMinutesWithBuffer
-        } else { // Overnight case
-            currentTimeInMinutes >= startTimeInMinutes || currentTimeInMinutes < endTimeInMinutesWithBuffer
-        }
-    }
-
-    private fun calculateNextIntervalTimestamp(intervalMinutes: Int, startTimeStr: String, endTimeStr: String): Long {
-        val now = java.util.Calendar.getInstance()
-        val (startHour, startMinute) = startTimeStr.split(":").map { it.toInt() }
-
-        val anchor = java.util.Calendar.getInstance().apply {
-            set(java.util.Calendar.HOUR_OF_DAY, startHour)
-            set(java.util.Calendar.MINUTE, startMinute)
-            set(java.util.Calendar.SECOND, 0)
-            set(java.util.Calendar.MILLISECOND, 0)
-        }
-        if (anchor.after(now)) {
-            anchor.add(java.util.Calendar.DAY_OF_YEAR, -1)
-        }
-
-        val nextTrigger = anchor.clone() as java.util.Calendar
-        while (nextTrigger.timeInMillis <= now.timeInMillis) {
-            nextTrigger.add(java.util.Calendar.MINUTE, intervalMinutes)
-        }
-
-        for (i in 0..(1440 / intervalMinutes.coerceAtLeast(1))) {
-            if (isTimeInWindow(startTimeStr, endTimeStr, nextTrigger)) {
-                return nextTrigger.timeInMillis
-            }
-            nextTrigger.add(java.util.Calendar.MINUTE, intervalMinutes)
-        }
-
-        return -1L
     }
 }

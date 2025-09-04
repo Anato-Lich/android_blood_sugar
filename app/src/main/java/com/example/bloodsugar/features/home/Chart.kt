@@ -35,6 +35,8 @@ import com.example.bloodsugar.database.BloodSugarRecord
 import com.example.bloodsugar.features.history.getValueColor
 import com.example.bloodsugar.domain.ChartData
 import com.example.bloodsugar.domain.TirThresholds
+import com.example.bloodsugar.database.EventType
+import com.example.bloodsugar.domain.Trend
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -333,113 +335,26 @@ fun BloodSugarChart(
             drawLine(errorColor, start = Offset(padding, y), end = Offset(canvasWidth - padding, y), strokeWidth = 2f, pathEffect = pathEffect)
         }
 
-        chartData.trendLine?.let { _ -> // We don't use the old linear trend anymore
+        chartData.trend?.let { trend ->
             if (records.size < 2) return@let
 
-            // 1. Compute EMA (Exponential Moving Average) for smooth trend
-            fun computeEMA(values: List<Float>, alpha: Double = 0.3): List<Float> {
-                if (values.isEmpty()) return emptyList()
-                val ema = mutableListOf(values.first())
-                for (i in 1 until values.size) {
-                    val prev = ema[i - 1].toDouble()
-                    val current = values[i].toDouble()
-                    ema.add((alpha * current + (1 - alpha) * prev).toFloat())
-                }
-                return ema
-            }
-
-            // 2. Predict next value using linear fit on recent points
-            fun predictNextValue(
-                timestamps: List<Long>,
-                values: List<Float>,
-                predictionMinutes: Long = 60
-            ): Pair<Long, Float>? {
-                if (timestamps.size < 2 || values.size < 2) return null
-
-                val now = System.currentTimeMillis()
-                val recentRecords = timestamps.zip(values)
-                    .sortedBy { it.first } // Ensure sorted
-                    .filter { (time, _) ->
-                        now - time <= TimeUnit.HOURS.toMillis(6) // Use last 6 hours max
-                    }
-
-                if (recentRecords.size < 2) return null
-
-                // Extract and convert time to hours since start (numerically stable)
-                val (times, valuesList) = recentRecords.unzip()
-                val time0 = times[0].toDouble()
-
-                val xs = times.map { (it - time0) / 60_000.0 } // minutes
-                val ys = valuesList.map { it.toDouble() }
-
-                // Ensure sufficient time spread (at least 10 minutes between first and last)
-                val timeRangeMinutes = xs.last() - xs.first()
-                if (timeRangeMinutes < 10.0) return null // Too little time difference
-
-                // Linear regression: y = mx + b
-                var sumX = 0.0
-                var sumY = 0.0
-                var sumXY = 0.0
-                var sumX2 = 0.0
-                val n = xs.size.toDouble()
-
-                for (i in xs.indices) {
-                    val x = xs[i]
-                    val y = ys[i]
-                    sumX += x
-                    sumY += y
-                    sumXY += x * y
-                    sumX2 += x * x
-                }
-
-                val denominator = n * sumX2 - sumX * sumX
-                if (denominator.absoluteValue < 1e-6) return null // Near-vertical or flat
-
-                val m = (n * sumXY - sumX * sumY) / denominator // slope (units per minute)
-                val b = (sumY - m * sumX) / n
-
-                // ✅ Clamp slope to realistic range
-                val maxSlopePerMinute = 2.0     // e.g., max +2 mg/dL per minute = +120 per hour
-                val minSlopePerMinute = -2.0    // max drop
-                val clampedSlope = m.coerceIn(minSlopePerMinute, maxSlopePerMinute)
-
-                // Predict at last time + predictionMinutes
-                val lastTimeMinutes = xs.last()
-                val predictX = lastTimeMinutes + predictionMinutes
-
-                val predictedY = (clampedSlope * predictX + b).toFloat()
-
-                // ✅ Clamp predicted value to realistic glucose range
-                val clampedValue = predictedY.coerceIn(30f, 600f)
-
-                val predictedTimestamp = times.last() + TimeUnit.MINUTES.toMillis(predictionMinutes)
-
-                return Pair(predictedTimestamp, clampedValue)
-            }
-
-            // 3. Calculate Rate of Change (mg/dL per hour)
-            fun calculateRateOfChange(): Float {
-                val recent = records.takeLast(2).sortedBy { it.timestamp }
-                if (recent.size < 2) return 0f
-                val first = recent.first()
-                val last = recent.last()
-                val timeDiffHours = (last.timestamp - first.timestamp) / 3600000f // ms → hours
-                return if (timeDiffHours > 0f) (last.value - first.value) / timeDiffHours else 0f
-            }
-
-            val emaValues = computeEMA(records.map { it.value }, alpha = 0.3)
+            val emaValues = trend.ema
             val emaPath = Path()
 
             records.forEachIndexed { index, record ->
-                val point = toOffset(record.timestamp, emaValues[index])
-                if (index == 0) {
-                    emaPath.moveTo(point.x, point.y)
-                } else {
-                    val prev = records[index - 1]
-                    val prevEma = emaValues[index - 1]
-                    val prevPoint = toOffset(prev.timestamp, prevEma)
-                    val cp1x = prevPoint.x + (point.x - prevPoint.x) / 2f
-                    emaPath.cubicTo(cp1x, prevPoint.y, cp1x, point.y, point.x, point.y)
+                if (index < emaValues.size) {
+                    val point = toOffset(record.timestamp, emaValues[index])
+                    if (index == 0) {
+                        emaPath.moveTo(point.x, point.y)
+                    } else {
+                        val prev = records[index - 1]
+                        if (index -1 < emaValues.size) {
+                            val prevEma = emaValues[index - 1]
+                            val prevPoint = toOffset(prev.timestamp, prevEma)
+                            val cp1x = prevPoint.x + (point.x - prevPoint.x) / 2f
+                            emaPath.cubicTo(cp1x, prevPoint.y, cp1x, point.y, point.x, point.y)
+                        }
+                    }
                 }
             }
 
@@ -454,12 +369,12 @@ fun BloodSugarChart(
             )
 
             // Draw Rate of Change Label
-            val rate = calculateRateOfChange()
+            val rate = trend.rateOfChange
             val (arrowText, textColorLocal) = when {
                 rate > 3.0f -> Pair("↑%.1f".format(rate), errorColor)
                 rate > 1.0f -> Pair("↗%.1f".format(rate), Color(0xFFFF9800)) // Orange
-                rate < -3.0f -> Pair("↓%.1f".format(-rate), secondaryColor)
-                rate < -1.0f -> Pair("↘%.1f".format(-rate), secondaryColor)
+                rate < -3.0f -> Pair("↓%.1f".format(rate.absoluteValue), secondaryColor)
+                rate < -1.0f -> Pair("↘%.1f".format(rate.absoluteValue), secondaryColor)
                 else -> Pair("→%.1f".format(rate), primaryColor.copy(alpha = 0.7f))
             }
 
@@ -476,27 +391,41 @@ fun BloodSugarChart(
             }
             val rocBgPaint = Paint().apply {
                 color = textColorLocal.copy(alpha=0.3f).toArgb()
-                textSize = with(density) { 12.sp.toPx() }
-                textAlign = Paint.Align.LEFT
                 isAntiAlias = true
             }
 
             // Background bubble
             val textBounds = Rect()
             rocPaint.getTextBounds(arrowText, 0, arrowText.length, textBounds)
-            val padding = 4.dp.toPx()
+            val bgPadding = 4.dp.toPx()
             val bgRect = RectF(
-                textX + textBounds.left - padding,
-                textY + textBounds.top - padding,
-                textX + textBounds.right + padding,
-                textY + textBounds.bottom + padding
+                textX - bgPadding,
+                textY + textBounds.top - bgPadding,
+                textX + textBounds.width() + bgPadding,
+                textY + textBounds.bottom + bgPadding
             )
 
             drawIntoCanvas {
-                // Draw background
                 it.nativeCanvas.drawRoundRect(bgRect, 6.dp.toPx(), 6.dp.toPx(), rocBgPaint)
-                // Draw text
                 it.nativeCanvas.drawText(arrowText, textX, textY, rocPaint)
+            }
+
+            // Draw prediction line
+            trend.prediction?.let { (predictedTimestamp, predictedValue) ->
+                val predictedPoint = toOffset(predictedTimestamp, predictedValue)
+
+                drawLine(
+                    color = onSurfaceColor.copy(alpha = 0.7f),
+                    start = lastPoint,
+                    end = predictedPoint,
+                    strokeWidth = 3f,
+                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f)
+                )
+                drawCircle(
+                    color = primaryColor,
+                    radius = 8f,
+                    center = predictedPoint
+                )
             }
         }
 
@@ -634,9 +563,8 @@ fun BloodSugarChart(
 
             group.forEach { event ->
                 val (color, label) = when (event.type) {
-                    "INSULIN" -> secondaryColor to "I: ${event.value}u"
-                    "CARBS" -> tertiaryColor to "C: ${event.value}g"
-                    else -> Color.Gray to ""
+                    EventType.INSULIN -> secondaryColor to "I: ${event.value}u"
+                    EventType.CARBS -> tertiaryColor to "C: ${event.value}g"
                 }
 
                 eventTextPaint.color = Color.White.toArgb()
@@ -666,7 +594,7 @@ fun BloodSugarChart(
             drawLine(color = tertiaryColor.copy(alpha = 0.5f), start = Offset(firstActivityX, padding), end = Offset(firstActivityX, canvasHeight - padding), strokeWidth = 2f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(5f, 5f), 0f))
 
             group.reversed().forEach { activity ->
-                val label1 = activity.type
+                val label1 = activity.type.name
                 val label2 = "${activity.durationMinutes} min"
 
                 val boxPaint = Paint().apply { color = tertiaryColor.toArgb() }
@@ -692,5 +620,3 @@ fun BloodSugarChart(
         }
     }
 }
-
-

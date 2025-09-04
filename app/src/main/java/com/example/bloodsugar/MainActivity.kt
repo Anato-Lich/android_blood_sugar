@@ -5,6 +5,7 @@ import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -44,6 +45,7 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -71,6 +73,8 @@ val bottomBarItems = listOf(
 
 class MainActivity : ComponentActivity() {
 
+    private val homeViewModel: HomeViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val intent = Intent(this, PersistentNotificationService::class.java)
@@ -79,19 +83,31 @@ class MainActivity : ComponentActivity() {
         } else {
             startService(intent)
         }
+        handleIntent(intent)
         setContent {
             BloodSugarTheme {
-                MainScreen()
+                MainScreen(homeViewModel)
             }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        intent.let { handleIntent(it) }
+    }
+
+    private fun handleIntent(intent: Intent) {
+        intent.action?.let {
+            homeViewModel.handleIntentAction(it)
+            intent.action = null // Consume action
         }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen() {
+fun MainScreen(homeViewModel: HomeViewModel) {
     val navController = rememberNavController()
-    val homeViewModel: HomeViewModel = viewModel()
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
@@ -108,7 +124,7 @@ fun MainScreen() {
                 drawerItems.forEach { screen ->
                     NavigationDrawerItem(
                         icon = { Icon(painterResource(id = screen.icon), contentDescription = null) },
-                        label = { Text(screen.route) },
+                        label = { Text(stringResource(id = screen.label)) },
                         selected = false,
                         onClick = {
                             scope.launch {
@@ -127,7 +143,7 @@ fun MainScreen() {
                 Spacer(Modifier.height(12.dp))
                 NavigationDrawerItem(
                     icon = { Icon(Icons.Default.Settings, contentDescription = null) },
-                    label = { Text("Settings") },
+                    label = { Text(stringResource(id = R.string.settings)) },
                     selected = false,
                     onClick = {
                         scope.launch {
@@ -142,10 +158,10 @@ fun MainScreen() {
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { Text("Blood Sugar") },
+                    title = { Text(stringResource(id = R.string.app_name)) },
                     navigationIcon = {
                         IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                            Icon(Icons.Default.Menu, contentDescription = "Menu")
+                            Icon(Icons.Default.Menu, contentDescription = stringResource(id = R.string.menu))
                         }
                     }
                 )
@@ -157,10 +173,9 @@ fun MainScreen() {
                     bottomBarItems.forEach { screen ->
                         NavigationBarItem(
                             icon = { Icon(painterResource(id = screen.icon), contentDescription = null) },
-                            label = { Text(screen.route) },
+                            label = { Text(stringResource(id = screen.label)) },
                             selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
                             onClick = {
-                                println("Navigating to: ${screen.route}")
                                 navController.navigate(screen.route) {
                                     popUpTo(navController.graph.findStartDestination().id)
                                     launchSingleTop = true
@@ -186,8 +201,8 @@ fun MainScreen() {
                                     isExpanded = false
                                 },
                                 containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                icon = { Icon(Icons.Default.FitnessCenter, "Log Activity") },
-                                text = { Text(text = "Activity") }
+                                icon = { Icon(Icons.Default.FitnessCenter, stringResource(id = R.string.log_activity)) },
+                                text = { Text(text = stringResource(id = R.string.log_activity)) }
                             )
                             ExtendedFloatingActionButton(
                                 onClick = {
@@ -195,8 +210,8 @@ fun MainScreen() {
                                     isExpanded = false
                                 },
                                 containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                icon = { Icon(Icons.Default.MedicalServices, "Log Insulin/Carbs") },
-                                text = { Text(text = "Carbs and Insulin") }
+                                icon = { Icon(Icons.Default.MedicalServices, stringResource(id = R.string.log_carbs_and_insulin)) },
+                                text = { Text(text = stringResource(id = R.string.log_carbs_and_insulin)) }
                             )
                             ExtendedFloatingActionButton(
                                 onClick = {
@@ -204,14 +219,14 @@ fun MainScreen() {
                                     isExpanded = false
                                 },
                                 containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                icon = { Icon(Icons.Default.WaterDrop, "Log Blood Sugar") },
-                                text = { Text(text = "Sugar level") }
+                                icon = { Icon(Icons.Default.WaterDrop, stringResource(id = R.string.log_sugar_level)) },
+                                text = { Text(text = stringResource(id = R.string.log_sugar_level)) }
                             )
                         }
                         FloatingActionButton(onClick = { isExpanded = !isExpanded }) {
                             Icon(
                                 if (isExpanded) Icons.Default.Close else Icons.Default.Add,
-                                contentDescription = "Add Log"
+                                contentDescription = stringResource(id = R.string.add_log)
                             )
                         }
                     }

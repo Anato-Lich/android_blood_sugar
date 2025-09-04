@@ -27,6 +27,15 @@ data class TirThresholds(
     }
 }
 
+data class Trend(
+    val slope: Float, // units per hour
+    val intercept: Float,
+    val startTime: Long, // for prediction formula
+    val rateOfChange: Float, // units per hour
+    val prediction: Pair<Long, Float>? = null,
+    val ema: List<Float> = emptyList()
+)
+
 data class ChartData(
     val records: List<BloodSugarRecord>,
     val events: List<EventRecord>,
@@ -36,7 +45,7 @@ data class ChartData(
     val max: Float,
     val rangeStart: Long,
     val rangeEnd: Long,
-    val trendLine: Triple<Float, Float, Long>? = null // Slope, Intercept, and StartTime for normalization
+    val trend: Trend? = null
 )
 
 enum class MealType {

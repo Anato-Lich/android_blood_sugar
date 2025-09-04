@@ -28,7 +28,9 @@ import com.example.bloodsugar.features.home.HomeViewModel
 import androidx.compose.foundation.layout.Column
 import androidx.compose.ui.Alignment
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
+import com.example.bloodsugar.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,10 +40,10 @@ fun HistoryScreen(navController: NavController, homeViewModel: HomeViewModel = v
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Full History") },
+                title = { Text(stringResource(id = R.string.history_full_history)) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(id = R.string.history_back))
                     }
                 }
             )
@@ -57,7 +59,7 @@ fun HistoryScreen(navController: NavController, homeViewModel: HomeViewModel = v
                 verticalArrangement = Arrangement.Center
             ) {
                 Text(
-                    "No history to display. Log your first blood sugar reading, event, or activity to see it here!",
+                    stringResource(id = R.string.history_no_data),
                     style = MaterialTheme.typography.bodyLarge,
                     textAlign = TextAlign.Center,
                     color = MaterialTheme.colorScheme.onSurfaceVariant

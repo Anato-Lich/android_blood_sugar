@@ -39,9 +39,11 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.bloodsugar.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -90,13 +92,13 @@ fun SettingsScreen(settingsViewModel: SettingsViewModel = viewModel()) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Settings") }
+                title = { Text(stringResource(id = R.string.settings)) }
             )
         },
         floatingActionButton = {
             if (uiState.hasUnsavedChanges) {
                 FloatingActionButton(onClick = { settingsViewModel.saveSettings() }) {
-                    Icon(Icons.Filled.Save, contentDescription = "Save Settings")
+                    Icon(Icons.Filled.Save, contentDescription = stringResource(id = R.string.settings_save))
                 }
             }
         }
@@ -112,26 +114,26 @@ fun SettingsScreen(settingsViewModel: SettingsViewModel = viewModel()) {
         ) {
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Insulin to Carb Ratios (ICR)", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(id = R.string.settings_icr_title), style = MaterialTheme.typography.titleMedium)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedTextField(
                             value = uiState.breakfastCoefficient,
                             onValueChange = { settingsViewModel.setBreakfastCoefficient(it) },
-                            label = { Text("Breakfast") },
+                            label = { Text(stringResource(id = R.string.settings_breakfast)) },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                             modifier = Modifier.weight(1f)
                         )
                         OutlinedTextField(
                             value = uiState.dinnerCoefficient,
                             onValueChange = { settingsViewModel.setDinnerCoefficient(it) },
-                            label = { Text("Dinner") },
+                            label = { Text(stringResource(id = R.string.settings_dinner)) },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                             modifier = Modifier.weight(1f)
                         )
                         OutlinedTextField(
                             value = uiState.supperCoefficient,
                             onValueChange = { settingsViewModel.setSupperCoefficient(it) },
-                            label = { Text("Supper") },
+                            label = { Text(stringResource(id = R.string.settings_supper)) },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                             modifier = Modifier.weight(1f)
                         )
@@ -141,11 +143,11 @@ fun SettingsScreen(settingsViewModel: SettingsViewModel = viewModel()) {
 
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Carb-to-Bread-Unit Conversion", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(id = R.string.settings_carb_to_bu_title), style = MaterialTheme.typography.titleMedium)
                     OutlinedTextField(
                         value = uiState.carbsPerBu,
                         onValueChange = { settingsViewModel.setCarbsPerBu(it) },
-                        label = { Text("Grams of Carbs per 1 BU") },
+                        label = { Text(stringResource(id = R.string.settings_grams_per_bu)) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -154,11 +156,11 @@ fun SettingsScreen(settingsViewModel: SettingsViewModel = viewModel()) {
 
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Daily Carb Goal", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(id = R.string.settings_daily_carb_goal_title), style = MaterialTheme.typography.titleMedium)
                     OutlinedTextField(
                         value = uiState.dailyCarbsGoal,
                         onValueChange = { settingsViewModel.setDailyCarbsGoal(it) },
-                        label = { Text("Grams of Carbs per Day") },
+                        label = { Text(stringResource(id = R.string.settings_grams_per_day)) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -167,7 +169,7 @@ fun SettingsScreen(settingsViewModel: SettingsViewModel = viewModel()) {
 
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Insulin Dose Accuracy", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(id = R.string.settings_insulin_dose_accuracy_title), style = MaterialTheme.typography.titleMedium)
                     Spacer(modifier = Modifier.height(8.dp))
 
                     var expanded by remember { mutableStateOf(false) }
@@ -181,7 +183,7 @@ fun SettingsScreen(settingsViewModel: SettingsViewModel = viewModel()) {
                             value = uiState.insulinDoseAccuracy,
                             onValueChange = {},
                             readOnly = true,
-                            label = { Text("Round up to nearest") },
+                            label = { Text(stringResource(id = R.string.settings_round_up_to_nearest)) },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                             modifier = Modifier.menuAnchor().fillMaxWidth()
                         )
@@ -206,7 +208,7 @@ fun SettingsScreen(settingsViewModel: SettingsViewModel = viewModel()) {
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        "Post-Meal Reminder",
+                        stringResource(id = R.string.settings_post_meal_reminder_title),
                         style = MaterialTheme.typography.titleMedium,
                         modifier = Modifier.align(Alignment.CenterHorizontally)
                     )
@@ -216,7 +218,7 @@ fun SettingsScreen(settingsViewModel: SettingsViewModel = viewModel()) {
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("Enable post-meal notification")
+                        Text(stringResource(id = R.string.settings_enable_post_meal_notification))
                         Switch(
                             checked = uiState.postMealNotificationEnabled,
                             onCheckedChange = { settingsViewModel.setPostMealNotificationEnabled(it) }
@@ -226,7 +228,7 @@ fun SettingsScreen(settingsViewModel: SettingsViewModel = viewModel()) {
                     OutlinedTextField(
                         value = uiState.postMealNotificationDelay,
                         onValueChange = { settingsViewModel.setPostMealNotificationDelay(it) },
-                        label = { Text("Delay after meal (minutes)") },
+                        label = { Text(stringResource(id = R.string.settings_delay_after_meal)) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier.fillMaxWidth(),
                         enabled = uiState.postMealNotificationEnabled
@@ -237,7 +239,7 @@ fun SettingsScreen(settingsViewModel: SettingsViewModel = viewModel()) {
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        "Trend Notifications",
+                        stringResource(id = R.string.settings_trend_notifications_title),
                         style = MaterialTheme.typography.titleMedium,
                         modifier = Modifier.align(Alignment.CenterHorizontally)
                     )
@@ -247,7 +249,7 @@ fun SettingsScreen(settingsViewModel: SettingsViewModel = viewModel()) {
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("Enable trend notifications")
+                        Text(stringResource(id = R.string.settings_enable_trend_notifications))
                         Switch(
                             checked = uiState.trendNotificationEnabled,
                             onCheckedChange = { settingsViewModel.setTrendNotificationEnabled(it) }
@@ -258,7 +260,7 @@ fun SettingsScreen(settingsViewModel: SettingsViewModel = viewModel()) {
                         OutlinedTextField(
                             value = uiState.trendNotificationLowThreshold,
                             onValueChange = { settingsViewModel.setTrendNotificationLowThreshold(it) },
-                            label = { Text("Low Threshold") },
+                            label = { Text(stringResource(id = R.string.settings_low_threshold)) },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                             modifier = Modifier.weight(1f),
                             enabled = uiState.trendNotificationEnabled
@@ -266,7 +268,7 @@ fun SettingsScreen(settingsViewModel: SettingsViewModel = viewModel()) {
                         OutlinedTextField(
                             value = uiState.trendNotificationHighThreshold,
                             onValueChange = { settingsViewModel.setTrendNotificationHighThreshold(it) },
-                            label = { Text("High Threshold") },
+                            label = { Text(stringResource(id = R.string.settings_high_threshold)) },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                             modifier = Modifier.weight(1f),
                             enabled = uiState.trendNotificationEnabled
@@ -278,7 +280,7 @@ fun SettingsScreen(settingsViewModel: SettingsViewModel = viewModel()) {
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        "Export Data",
+                        stringResource(id = R.string.settings_export_data_title),
                         style = MaterialTheme.typography.titleMedium,
                         modifier = Modifier.align(Alignment.CenterHorizontally)
                     )
@@ -288,10 +290,10 @@ fun SettingsScreen(settingsViewModel: SettingsViewModel = viewModel()) {
                         horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
                         Button(onClick = { settingsViewModel.exportDataAsCsv() }) {
-                            Text("Export as CSV")
+                            Text(stringResource(id = R.string.settings_export_as_csv))
                         }
                         Button(onClick = { settingsViewModel.exportDataAsPdf(context) }) {
-                            Text("Export as PDF")
+                            Text(stringResource(id = R.string.settings_export_as_pdf))
                         }
                     }
                 }
@@ -299,10 +301,10 @@ fun SettingsScreen(settingsViewModel: SettingsViewModel = viewModel()) {
 
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Debug Options", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(id = R.string.settings_debug_options_title), style = MaterialTheme.typography.titleMedium)
                     Spacer(modifier = Modifier.height(8.dp))
                     Button(onClick = { settingsViewModel.cancelAllWork() }) {
-                        Text("Cancel All Pending Notifications")
+                        Text(stringResource(id = R.string.settings_cancel_all_notifications))
                     }
                 }
             }
