@@ -4,172 +4,280 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:paddingTop="8dp"
-    android:paddingBottom="8dp"
-    android:paddingStart="16dp"
-    android:paddingEnd="16dp">
+    android:paddingStart="2dp"
+    android:paddingEnd="2dp"
+    android:paddingTop="2dp"
+    android:paddingBottom="2dp">
 
-    <!-- Top Row: Main Info + Action Button -->
+    <!-- Main content: Metrics and Chart -->
     <LinearLayout
+        android:id="@+id/main_content"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:layout_marginBottom="8dp">
+        android:baselineAligned="false">
 
-        <TextView
-            android:id="@+id/notification_text"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:textAppearance="@style/TextAppearance.Compat.Notification.Title"
-            android:textSize="14sp"
-            android:maxLines="2"
-            android:ellipsize="end"
-            tools:text="Next: Check sugar in 45 min" />
-
-        <TextView
-            android:id="@+id/notification_log_sugar_button"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:paddingStart="12dp"
-            android:paddingTop="6dp"
-            android:paddingEnd="12dp"
-            android:paddingBottom="6dp"
-            android:text="LOG"
-            android:textColor="#2196F3"
-            android:textAppearance="@style/TextAppearance.Compat.Notification.Info"
-            android:textStyle="bold"
-            android:background="?android:attr/selectableItemBackground"
-            android:layout_marginStart="8dp" />
-
-    </LinearLayout>
-
-    <!-- Mini Chart -->
-    <ImageView
-        android:id="@+id/notification_chart"
-        android:layout_width="match_parent"
-        android:layout_height="40dp"
-        android:layout_marginTop="4dp"
-        android:layout_marginBottom="8dp"
-        tools:src="@android:color/darker_gray" />
-
-    <!-- Bottom Row: Metrics -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:baselineAligned="false"
-        android:orientation="horizontal">
-
-        <!-- Last Value + Trend -->
+        <!-- Left side: Metrics (60% width) -->
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_weight="1.3"
-            android:gravity="center"
-            android:orientation="vertical">
+            android:layout_weight="3"
+            android:orientation="vertical"
+            android:layout_marginEnd="4dp">
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Last"
-                android:textAppearance="@style/TextAppearance.Compat.Notification.Info"
-                android:textSize="12sp"
-                android:textColor="#666666" />
-
+            <!-- AVG Metric - Fixed height -->
             <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
+                android:id="@+id/notification_avg_container"
+                android:layout_width="match_parent"
+                android:layout_height="80dp"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:background="@drawable/notification_metric_box_default"
+                android:paddingTop="8dp"
+                android:paddingBottom="8dp">
                 <TextView
-                    android:id="@+id/notification_last"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textAppearance="@style/TextAppearance.Compat.Notification.Title"
-                    android:textSize="16sp"
-                    android:textStyle="bold"
-                    tools:text="10.2" />
-
+                    android:text="Avg Today"
+                    style="@style/TextAppearance.Compat.Notification.Info"
+                    android:textSize="11sp"/>
                 <TextView
-                    android:id="@+id/notification_trend"
+                    android:id="@+id/notification_average"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="4dp"
-                    android:textAppearance="@style/TextAppearance.Compat.Notification.Title"
-                    android:textSize="14sp"
-                    android:textStyle="bold"
-                    tools:text="↑" />
+                    style="@style/TextAppearance.Compat.Notification.Title"
+                    android:textSize="32sp"
+                    tools:text="7.8"/>
+            </LinearLayout>
+
+            <!-- Min/Max/Last Row - Fixed height -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:orientation="horizontal"
+                android:layout_marginTop="6dp">
+
+                <!-- Min -->
+                <LinearLayout
+                    android:id="@+id/notification_min_container"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:gravity="center"
+                    android:background="@drawable/notification_metric_box_default"
+                    android:padding="6dp"
+                    android:layout_marginEnd="3dp">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Min"
+                        style="@style/TextAppearance.Compat.Notification.Info"
+                        android:textSize="9sp"/>
+                    <TextView
+                        android:id="@+id/notification_min"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        style="@style/TextAppearance.Compat.Notification.Title"
+                        android:textSize="13sp"
+                        tools:text="4.1"/>
+                </LinearLayout>
+
+                <!-- Max -->
+                <LinearLayout
+                    android:id="@+id/notification_max_container"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:gravity="center"
+                    android:background="@drawable/notification_metric_box_default"
+                    android:padding="6dp"
+                    android:layout_marginStart="3dp"
+                    android:layout_marginEnd="3dp">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Max"
+                        style="@style/TextAppearance.Compat.Notification.Info"
+                        android:textSize="9sp"/>
+                    <TextView
+                        android:id="@+id/notification_max"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        style="@style/TextAppearance.Compat.Notification.Title"
+                        android:textSize="13sp"
+                        tools:text="11.2"/>
+                </LinearLayout>
+
+                <!-- Last -->
+                <LinearLayout
+                    android:id="@+id/notification_last_container"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:gravity="center"
+                    android:background="@drawable/notification_metric_box_default"
+                    android:padding="6dp"
+                    android:layout_marginStart="3dp">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Last"
+                        style="@style/TextAppearance.Compat.Notification.Info"
+                        android:textSize="9sp"/>
+                    <TextView
+                        android:id="@+id/notification_last"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        style="@style/TextAppearance.Compat.Notification.Title"
+                        android:textSize="13sp"
+                        tools:text="5.5"/>
+                </LinearLayout>
             </LinearLayout>
         </LinearLayout>
 
-        <!-- Vertical Divider -->
-        <ImageView
-            android:layout_width="1dp"
-            android:layout_height="match_parent"
-            android:layout_marginTop="4dp"
-            android:layout_marginBottom="4dp"
-            android:background="#CCCCCC" />
-
-        <!-- Average -->
+        <!-- Right side: Carb Goal + Chart + Button (40% width) -->
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:gravity="center"
-            android:orientation="vertical">
+            android:layout_weight="2"
+            android:orientation="vertical"
+            android:layout_marginStart="4dp">
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Avg"
-                android:textAppearance="@style/TextAppearance.Compat.Notification.Info"
-                android:textSize="12sp"
-                android:textColor="#666666" />
+            <!-- Top row: Carb Progress + Log Button - Height matches AVG metric (80dp) -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="80dp"
+                android:orientation="horizontal"
+                android:layout_marginBottom="6dp">
 
-            <TextView
-                android:id="@+id/notification_average"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textAppearance="@style/TextAppearance.Compat.Notification.Title"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                tools:text="7.8" />
-        </LinearLayout>
+                <!-- Carb Progress Box - Square (70dp) with vertical centering -->
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="70dp"
+                    android:layout_weight="1"
+                    android:layout_gravity="center_vertical"
+                    android:orientation="vertical"
+                    android:gravity="center"
+                    android:background="@drawable/notification_metric_box_default"
+                    android:padding="3dp"
+                    android:layout_marginEnd="3dp">
 
-        <!-- Vertical Divider -->
-        <ImageView
-            android:layout_width="1dp"
-            android:layout_height="match_parent"
-            android:layout_marginTop="4dp"
-            android:layout_marginBottom="4dp"
-            android:background="#CCCCCC" />
+                    <FrameLayout
+                        android:id="@+id/notification_carb_progress_container"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent">
+                        <ProgressBar
+                            android:id="@+id/notification_carb_progressbar"
+                            style="?android:attr/progressBarStyleHorizontal"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:progressDrawable="@drawable/circular_progress_bar"
+                            android:max="100"
+                            tools:progress="60"/>
+                        <TextView
+                            android:id="@+id/notification_carb_text"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center"
+                            style="@style/TextAppearance.Compat.Notification.Title"
+                            android:textSize="14sp"
+                            tools:text="120g" />
+                    </FrameLayout>
+                </LinearLayout>
 
-        <!-- Min/Max -->
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:gravity="center"
-            android:orientation="vertical">
+                <!-- Log Sugar Button - Square (70dp) with vertical centering -->
+                <TextView
+                    android:id="@+id/notification_log_sugar_button"
+                    android:layout_width="0dp"
+                    android:layout_height="70dp"
+                    android:layout_weight="1"
+                    android:layout_gravity="center_vertical"
+                    android:layout_marginStart="3dp"
+                    android:padding="6dp"
+                    android:gravity="center"
+                    android:text="Log Sugar"
+                    android:textColor="@color/primaryGreen"
+                    style="@style/TextAppearance.Compat.Notification.Info"
+                    android:textStyle="bold"
+                    android:textSize="11sp"
+                    android:background="@drawable/notification_metric_box_default" />
+            </LinearLayout>
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Range"
-                android:textAppearance="@style/TextAppearance.Compat.Notification.Info"
-                android:textSize="12sp"
-                android:textColor="#666666" />
-
-            <TextView
-                android:id="@+id/notification_min_max"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textAppearance="@style/TextAppearance.Compat.Notification.Title"
-                android:textSize="14sp"
-                android:textStyle="bold"
-                tools:text="4.5-12.1" />
+            <!-- Chart Area - Same height as min/max/last row -->
+            <ImageView
+                android:id="@+id/notification_chart"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:scaleType="centerCrop"
+                tools:src="@android:color/darker_gray" />
         </LinearLayout>
     </LinearLayout>
+
+    <!-- Bottom section - Same width ratio -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="6dp">
+
+        <!-- Notification Text - Same width as left column (60%) -->
+        <LinearLayout
+            android:id="@+id/notification_text_container"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="3"
+            android:background="@drawable/notification_metric_box_default"
+            android:orientation="vertical"
+            android:padding="6dp">
+
+            <TextView
+                android:id="@+id/notification_line_1"
+                style="@style/TextAppearance.Compat.Notification.Line2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="2"
+                android:textSize="11sp"
+                android:visibility="gone"
+                tools:text="• Next: Check sugar in 45 min"
+                tools:visibility="visible" />
+
+            <TextView
+                android:id="@+id/notification_line_2"
+                style="@style/TextAppearance.Compat.Notification.Line2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="2"
+                android:textSize="11sp"
+                android:visibility="gone"
+                tools:text="• Daily reminder at 08:00"
+                tools:visibility="visible" />
+
+            <TextView
+                android:id="@+id/notification_line_3"
+                style="@style/TextAppearance.Compat.Notification.Line2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="2"
+                android:textSize="11sp"
+                android:visibility="gone"
+                tools:text="• Interval reminder"
+                tools:visibility="visible" />
+        </LinearLayout>
+
+        <!-- Spacer using TextView with empty text (compatible with RemoteViews) -->
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="2"
+            android:layout_marginStart="4dp"
+            android:text=""
+            android:background="@android:color/transparent" />
+    </LinearLayout>
+
 </LinearLayout>

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="primaryGreen">#FF4CAF50</color>
+    <color name="primaryGreenContainer">#FFC8E6C9</color>
+    <color name="primaryGreenTransparent">#334CAF50</color>
+    <color name="secondaryBlue">#FF2196F3</color>
+    <color name="errorRed">#FFD32F2F</color>
+    <color name="text_color_default">#FF000000</color>
+    <color name="text_color_gray">#FF888888</color>
+    <color name="text_color_light_gray">#FF666666</color>
+    <color name="notification_divider">#FFCCCCCC</color>
+    <color name="notification_button_text">#FF2196F3</color>
+    <color name="notification_metric_box_default_bg">#1A888888</color>
+    <color name="notification_metric_box_green_bg">#1A4CAF50</color>
+    <color name="notification_metric_box_blue_bg">#1A2196F3</color>
+    <color name="notification_metric_box_red_bg">#1AD32F2F</color>
+    <color name="notification_button_bg">#0D2196F3</color>
+</resources>
