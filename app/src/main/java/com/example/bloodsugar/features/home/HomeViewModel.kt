@@ -264,7 +264,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     fun saveInsulinCarbEvent() {
         viewModelScope.launch {
-            val timestamp = System.currentTimeMillis()
+            val timestamp = _uiState.value.newRecordTimestamp ?: System.currentTimeMillis()
             val insulin = _uiState.value.insulinValue.replace(',', '.').toFloatOrNull()
             val carbs = _uiState.value.carbsValue.replace(',', '.').toFloatOrNull()
 
@@ -275,7 +275,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 repository.insertEvent(EventRecord(timestamp = timestamp, type = EventType.CARBS, value = carbs))
                 schedulePostMealNotification(carbs)
             }
-            _uiState.update { it.copy(insulinValue = "", carbsValue = "") }
+            _uiState.update { it.copy(insulinValue = "", carbsValue = "", newRecordTimestamp = null) }
         }
     }
     
@@ -299,17 +299,37 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun logInsulinAndCarbs(insulin: Float, carbs: Float) {
+        viewModelScope.launch {
+            val timestamp = System.currentTimeMillis()
+            if (insulin > 0) {
+                repository.insertEvent(EventRecord(timestamp = timestamp, type = EventType.INSULIN, value = insulin))
+            }
+            if (carbs > 0) {
+                repository.insertEvent(EventRecord(
+                    timestamp = timestamp,
+                    type = EventType.CARBS,
+                    value = carbs,
+                    foodName = "From Calculator",
+                    foodServing = "Calculated from %.1f u insulin".format(insulin)
+                ))
+                schedulePostMealNotification(carbs)
+            }
+            _uiState.update { it.copy(scrollToHistory = true) }
+        }
+    }
+
     fun saveRecord() {
         viewModelScope.launch {
             val value = _uiState.value.sugarValue.replace(',', '.').toFloatOrNull() ?: return@launch
             val comment = _uiState.value.comment
             val record = BloodSugarRecord(
-                timestamp = System.currentTimeMillis(),
+                timestamp = _uiState.value.newRecordTimestamp ?: System.currentTimeMillis(),
                 value = value,
                 comment = comment
             )
             repository.insertRecord(record)
-            _uiState.update { it.copy(sugarValue = "", comment = "") }
+            _uiState.update { it.copy(sugarValue = "", comment = "", newRecordTimestamp = null) }
             checkTrendAndScheduleNotifications()
         }
     }
@@ -327,15 +347,15 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun onLogSugarClicked() {
-        _uiState.update { it.copy(shownDialog = DialogType.SUGAR) }
+        _uiState.update { it.copy(shownDialog = DialogType.SUGAR, newRecordTimestamp = System.currentTimeMillis()) }
     }
 
     fun onLogEventClicked() {
-        _uiState.update { it.copy(shownDialog = DialogType.EVENT) }
+        _uiState.update { it.copy(shownDialog = DialogType.EVENT, newRecordTimestamp = System.currentTimeMillis()) }
     }
 
     fun onDialogDismiss() {
-        _uiState.update { it.copy(shownDialog = null) }
+        _uiState.update { it.copy(shownDialog = null, newRecordTimestamp = null) }
     }
 
     fun onChartRecordSelected(record: BloodSugarRecord) {
@@ -357,11 +377,15 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun onLogActivityClicked() {
-        _uiState.update { it.copy(shownDialog = DialogType.ACTIVITY) }
+        _uiState.update { it.copy(shownDialog = DialogType.ACTIVITY, newRecordTimestamp = System.currentTimeMillis()) }
     }
 
     fun setActivityType(type: String) {
         _uiState.update { it.copy(activityType = type) }
+    }
+    
+    fun setNewRecordTimestamp(timestamp: Long) {
+        _uiState.update { it.copy(newRecordTimestamp = timestamp) }
     }
 
     fun setActivityDuration(duration: String) {
@@ -376,13 +400,13 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val duration = _uiState.value.activityDuration.toIntOrNull() ?: return@launch
             val activity = ActivityRecord(
-                timestamp = System.currentTimeMillis(),
+                timestamp = _uiState.value.newRecordTimestamp ?: System.currentTimeMillis(),
                 type = ActivityType.valueOf(_uiState.value.activityType.uppercase()),
                 durationMinutes = duration,
                 intensity = ActivityIntensity.valueOf(_uiState.value.activityIntensity.uppercase())
             )
             repository.insertActivity(activity)
-            _uiState.update { it.copy(activityDuration = "") }
+            _uiState.update { it.copy(activityDuration = "", newRecordTimestamp = null) }
         }
     }
 

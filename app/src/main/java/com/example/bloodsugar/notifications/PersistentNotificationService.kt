@@ -85,7 +85,7 @@ class PersistentNotificationService : Service() {
         scope.launch {
             val dataFlow = tickerFlow(TimeUnit.MINUTES.toMillis(1)).flatMapLatest {
                 val endTime = System.currentTimeMillis()
-                val startTime = endTime - TimeUnit.HOURS.toMillis(24)
+                val startTime = getTodayStartTime()
                 repository.getCombinedDataInRange(startTime, endTime)
             }
 
@@ -114,6 +114,15 @@ class PersistentNotificationService : Service() {
         }
 
         return START_STICKY
+    }
+
+    private fun getTodayStartTime(): Long {
+        val calendar = Calendar.getInstance()
+        calendar.set(Calendar.HOUR_OF_DAY, 0)
+        calendar.set(Calendar.MINUTE, 0)
+        calendar.set(Calendar.SECOND, 0)
+        calendar.set(Calendar.MILLISECOND, 0)
+        return calendar.timeInMillis
     }
 
     private fun getPostMealNotification(events: List<com.example.bloodsugar.database.EventRecord>, enabled: Boolean, delay: Int): String? {
@@ -333,7 +342,7 @@ class PersistentNotificationService : Service() {
             .setCustomBigContentView(expandedRemoteViews)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
-            .setPriority(NotificationCompat.PRIORITY_MIN)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setOnlyAlertOnce(true)
     }
 
@@ -347,13 +356,24 @@ class PersistentNotificationService : Service() {
         job.cancel()
     }
 
+    private fun computeEMA(values: List<Float>, alpha: Double = 0.3): List<Float> {
+        if (values.isEmpty()) return emptyList()
+        val ema = mutableListOf(values.first())
+        for (i in 1 until values.size) {
+            val prev = ema[i - 1].toDouble()
+            val current = values[i].toDouble()
+            ema.add((alpha * current + (1 - alpha) * prev).toFloat())
+        }
+        return ema
+    }
+
     private fun generateChartBitmap(records: List<com.example.bloodsugar.database.BloodSugarRecord>): Bitmap? {
         if (records.size < 2) return null
 
         val density = resources.displayMetrics.density
-        val width = (120 * density).toInt()  // 120dp width to match your layout
-        val height = (56 * density).toInt()  // 56dp height to match your chart box
-        val padding = 8f
+        val width = (120 * density).toInt()
+        val height = (56 * density).toInt()
+        val padding = 4f
 
         val bitmap = createBitmap(width, height)
         val canvas = Canvas(bitmap)
@@ -363,94 +383,138 @@ class PersistentNotificationService : Service() {
         val maxTime = sortedRecords.last().timestamp
         val timeRange = (maxTime - minTime).toFloat().coerceAtLeast(1f)
 
-        val minValue = sortedRecords.minOf { it.value }.coerceAtMost(TirThresholds.Default.low - 1)
-        val maxValue = sortedRecords.maxOf { it.value }.coerceAtLeast(TirThresholds.Default.high + 1)
+        val minValue = sortedRecords.minOf { it.value }.coerceAtMost(TirThresholds.Default.low - 2)
+        val maxValue = sortedRecords.maxOf { it.value }.coerceAtLeast(TirThresholds.Default.high + 2)
         val valueRange = (maxValue - minValue).coerceAtLeast(1f)
 
-        val path = Path()
-        val fillPath = Path()
-
-        // Line paint
-        val linePaint = Paint().apply {
-            color = 0xFF4CAF50.toInt() // PrimaryGreen
-            strokeWidth = 3f
-            style = Paint.Style.STROKE
-            isAntiAlias = true
+        fun valueToY(value: Float): Float {
+            return (height - padding) - ((value.coerceIn(minValue, maxValue) - minValue) / valueRange) * (height - 2 * padding)
+        }
+        fun timestampToX(timestamp: Long): Float {
+            return padding + ((timestamp - minTime) / timeRange) * (width - 2 * padding)
         }
 
-        // Fill paint
+        // --- 1. Draw Backgrounds and Thresholds ---
+        val thresholds = TirThresholds.Default
+        val yForHigh = valueToY(thresholds.high)
+        val yForLow = valueToY(thresholds.low)
+        val chartTopY = padding
+        val chartBottomY = height.toFloat() - padding
+        val chartLeftX = padding
+        val chartWidth = width.toFloat() - 2 * padding
+
+        val errorColor = ContextCompat.getColor(this, R.color.errorRed)
+        val primaryColor = ContextCompat.getColor(this, R.color.primaryGreen)
+        val secondaryColor = ContextCompat.getColor(this, R.color.secondaryBlue)
+        val onSurfaceColor = ContextCompat.getColor(this, R.color.text_color_gray)
+
+        canvas.drawRect(chartLeftX, chartTopY, chartLeftX + chartWidth, yForHigh, Paint().apply { color = errorColor; alpha = 15 })
+        canvas.drawRect(chartLeftX, yForHigh, chartLeftX + chartWidth, yForLow, Paint().apply { color = primaryColor; alpha = 15 })
+        canvas.drawRect(chartLeftX, yForLow, chartLeftX + chartWidth, chartBottomY, Paint().apply { color = secondaryColor; alpha = 15 })
+
+        val dashPaint = Paint().apply {
+            strokeWidth = 2f
+            style = Paint.Style.STROKE
+            pathEffect = android.graphics.DashPathEffect(floatArrayOf(8f, 8f), 0f)
+        }
+        dashPaint.color = errorColor
+        canvas.drawLine(chartLeftX, yForHigh, chartLeftX + chartWidth, yForHigh, dashPaint)
+        dashPaint.color = secondaryColor
+        canvas.drawLine(chartLeftX, yForLow, chartLeftX + chartWidth, yForLow, dashPaint)
+
+        // --- 2. Draw EMA Trend Line ---
+        val emaValues = computeEMA(sortedRecords.map { it.value })
+        val emaPath = Path()
+        val emaPaint = Paint().apply {
+            color = onSurfaceColor
+            strokeWidth = 2f
+            style = Paint.Style.STROKE
+            isAntiAlias = true
+            pathEffect = android.graphics.DashPathEffect(floatArrayOf(10f, 8f), 0f)
+        }
+        emaValues.forEachIndexed { i, emaValue ->
+            val record = sortedRecords[i]
+            val x = timestampToX(record.timestamp)
+            val y = valueToY(emaValue)
+            if (i == 0) {
+                emaPath.moveTo(x, y)
+            } else {
+                val prevRecord = sortedRecords[i-1]
+                val prevEmaValue = emaValues[i-1]
+                val prevX = timestampToX(prevRecord.timestamp)
+                val prevY = valueToY(prevEmaValue)
+                val cx = prevX + (x - prevX) / 2f
+                emaPath.cubicTo(cx, prevY, cx, y, x, y)
+            }
+        }
+        canvas.drawPath(emaPath, emaPaint)
+
+        // --- 3. Draw Fill Path ---
+        val fillPath = Path()
+        val transparentPrimary = (primaryColor and 0x00FFFFFF) or (0x33000000)
         val fillPaint = Paint().apply {
             style = Paint.Style.FILL
             isAntiAlias = true
-            xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_OVER)
+            shader = android.graphics.LinearGradient(0f, 0f, 0f, height.toFloat(), transparentPrimary, 0x00000000, android.graphics.Shader.TileMode.CLAMP)
         }
-
-        // Point paint
-        val pointPaint = Paint().apply {
-            color = 0xFF4CAF50.toInt() // PrimaryGreen
-            strokeWidth = 2f
-            style = Paint.Style.FILL
-            isAntiAlias = true
-        }
-
-        // Last point paint (highlighted)
-        val lastPointPaint = Paint().apply {
-            color = 0xFFFF5722.toInt() // Orange/Red for last point
-            strokeWidth = 2f
-            style = Paint.Style.FILL
-            isAntiAlias = true
-        }
-
-        val gradient = android.graphics.LinearGradient(0f, 0f, 0f, height.toFloat(), 0x804CAF50.toInt(), 0x004CAF50.toInt(), android.graphics.Shader.TileMode.CLAMP)
-        fillPaint.shader = gradient
-
-        val points = mutableListOf<Pair<Float, Float>>()
-
         sortedRecords.forEachIndexed { i, record ->
-            val x = padding + ((record.timestamp - minTime) / timeRange) * (width - 2 * padding)
-            val y = (height - padding) - ((record.value - minValue) / valueRange) * (height - 2 * padding)
-
-            points.add(x to y)
-
+            val x = timestampToX(record.timestamp)
+            val y = valueToY(record.value)
             if (i == 0) {
-                path.moveTo(x, y)
                 fillPath.moveTo(x, height.toFloat())
                 fillPath.lineTo(x, y)
             } else {
-                path.lineTo(x, y)
-                fillPath.lineTo(x, y)
-            }
-
-            if (i == sortedRecords.size - 1) {
-                fillPath.lineTo(x, height.toFloat())
-                fillPath.close()
+                val prevRecord = sortedRecords[i-1]
+                val prevX = timestampToX(prevRecord.timestamp)
+                val prevY = valueToY(prevRecord.value)
+                val cx = prevX + (x - prevX) / 2f
+                fillPath.cubicTo(cx, prevY, cx, y, x, y)
             }
         }
-
-        // Draw fill area
+        fillPath.lineTo(timestampToX(sortedRecords.last().timestamp), height.toFloat())
+        fillPath.close()
         canvas.drawPath(fillPath, fillPaint)
 
-        // Draw line
-        canvas.drawPath(path, linePaint)
+        // --- 4. Draw Gradient Line and Points ---
+        val segmentPath = Path()
+        for (i in 0 until sortedRecords.size - 1) {
+            val record0 = sortedRecords[i]
+            val record1 = sortedRecords[i+1]
+            val p0x = timestampToX(record0.timestamp)
+            val p0y = valueToY(record0.value)
+            val p1x = timestampToX(record1.timestamp)
+            val p1y = valueToY(record1.value)
 
-        // Draw points
-        points.forEachIndexed { index, point ->
-            val (x, y) = point
-            val paint = if (index == points.size - 1) lastPointPaint else pointPaint
+            segmentPath.reset()
+            segmentPath.moveTo(p0x, p0y)
+            val cx = p0x + (p1x - p0x) / 2f
+            segmentPath.cubicTo(cx, p0y, cx, p1y, p1x, p1y)
 
-            // Draw point as small circle
-            canvas.drawCircle(x, y, if (index == points.size - 1) 4f else 3f, paint)
+            val color0 = getValueColor(record0.value)
+            val color1 = getValueColor(record1.value)
 
-            // Add small stroke around last point for better visibility
-            if (index == points.size - 1) {
-                val strokePaint = Paint().apply {
-                    color = 0xFFFFFFFF.toInt() // White stroke
-                    strokeWidth = 1f
-                    style = Paint.Style.STROKE
-                    isAntiAlias = true
-                }
-                canvas.drawCircle(x, y, 4f, strokePaint)
+            val segmentPaint = Paint().apply {
+                style = Paint.Style.STROKE
+                strokeWidth = 3f
+                isAntiAlias = true
+                strokeJoin = Paint.Join.ROUND
+                strokeCap = Paint.Cap.ROUND
+                shader = android.graphics.LinearGradient(p0x, p0y, p1x, p1y, color0, color1, android.graphics.Shader.TileMode.CLAMP)
             }
+            canvas.drawPath(segmentPath, segmentPaint)
+        }
+
+        // Draw points on top
+        sortedRecords.forEach { record ->
+            val x = timestampToX(record.timestamp)
+            val y = valueToY(record.value)
+            val pointColor = getValueColor(record.value)
+            val pointPaint = Paint().apply {
+                color = pointColor
+                style = Paint.Style.FILL
+                isAntiAlias = true
+            }
+            canvas.drawCircle(x, y, 4f, pointPaint)
         }
 
         return bitmap

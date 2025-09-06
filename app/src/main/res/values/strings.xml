@@ -72,6 +72,7 @@
     <string name="calculator_meal_details_format">- %1$s (%2$s%3$s) -> %4$.1fg</string>
     <string name="calculator_required_insulin_dose">Required Insulin Dose</string>
     <string name="calculator_log_meal">Log Meal</string>
+    <string name="calculator_log_insulin_and_carbs">Log Insulin and Carbs</string>
     <string name="calculator_clear_all">Clear All</string>
     <string name="calculator_calculate_carbs_from_insulin">Calculate Carbs from Insulin Dose</string>
     <string name="calculator_insulin_dose">Insulin Dose</string>

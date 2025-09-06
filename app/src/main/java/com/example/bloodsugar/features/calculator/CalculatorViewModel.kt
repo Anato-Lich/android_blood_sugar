@@ -13,8 +13,14 @@ import com.example.bloodsugar.domain.MealType
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+
+data class CarbCalculationResult(
+    val dose: Float,
+    val carbs: Float
+)
 
 data class CalculatorUiState(
     // Insulin from Carbs Tab
@@ -26,7 +32,8 @@ data class CalculatorUiState(
 
     // Carbs from Insulin Tab
     val insulinDoseForCarbs: String = "",
-    val calculatedCarbs: Float? = null,
+    val carbCalculationResults: List<CarbCalculationResult> = emptyList(),
+    val selectedCarbCalculationIndex: Int = 0,
 
     // Remaining Carbs Tab
     val insulinDoseForRemainingCarbs: String = "",
@@ -186,6 +193,14 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
         ) }
     }
 
+    fun clearCarbsFromInsulin() {
+        _uiState.update { it.copy(
+            insulinDoseForCarbs = "",
+            carbCalculationResults = emptyList(),
+            selectedCarbCalculationIndex = 0
+        ) }
+    }
+
     fun resetFoodInputs() {
         _uiState.update { it.copy(foodServingValue = "", foodCarbs = "") }
     }
@@ -266,8 +281,37 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
     fun calculateCarbs(mealType: MealType) {
         viewModelScope.launch {
             val insulinDose = _uiState.value.insulinDoseForCarbs.replace(',', '.').toFloatOrNull() ?: 0f
-            val carbs = calculatorUseCase.calculateCarbs(insulinDose, mealType)
-            _uiState.update { it.copy(calculatedCarbs = carbs) }
+            if (insulinDose < 0f) {
+                _uiState.update { it.copy(carbCalculationResults = emptyList()) }
+                return@launch
+            }
+
+            val accuracy = settingsDataStore.insulinDoseAccuracy.first()
+            if (accuracy <= 0f) {
+                val carbs = calculatorUseCase.calculateCarbs(insulinDose, mealType)
+                val results = listOf(CarbCalculationResult(dose = insulinDose, carbs = carbs))
+                _uiState.update { it.copy(carbCalculationResults = results, selectedCarbCalculationIndex = 0) }
+                return@launch
+            }
+
+            val results = mutableListOf<CarbCalculationResult>()
+            val numSteps = 2 // Show 10 steps below and 10 above
+
+            for (i in -numSteps..numSteps) {
+                val currentDose = insulinDose + i * accuracy
+                if (currentDose < 0) continue
+
+                val carbsForDose = calculatorUseCase.calculateCarbs(currentDose, mealType)
+                results.add(CarbCalculationResult(dose = currentDose, carbs = carbsForDose))
+            }
+
+            val finalResults = results.distinctBy { it.dose }.sortedBy { it.dose }
+            val newIndex = finalResults.indexOfFirst { it.dose == insulinDose }
+
+            _uiState.update { it.copy(
+                carbCalculationResults = finalResults,
+                selectedCarbCalculationIndex = if (newIndex != -1) newIndex.coerceIn(0, finalResults.size -1) else 0
+            ) }
         }
     }
 

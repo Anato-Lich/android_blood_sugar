@@ -56,6 +56,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
@@ -105,7 +107,7 @@ fun CalculatorScreen(
         ) {
             when (selectedTabIndex) {
                 0 -> InsulinFromCarbs(uiState, calculatorViewModel, homeViewModel, navController, scrollState, scope)
-                1 -> CarbsFromInsulin(uiState, calculatorViewModel, scrollState, scope)
+                1 -> CarbsFromInsulin(uiState, calculatorViewModel, homeViewModel, navController, scrollState, scope)
                 2 -> RemainingCarbs(uiState, calculatorViewModel, scrollState, scope)
             }
         }
@@ -188,13 +190,32 @@ fun InsulinFromCarbs(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun CarbsFromInsulin(uiState: CalculatorUiState, calculatorViewModel: CalculatorViewModel, scrollState: ScrollState, scope: CoroutineScope) {
-    LaunchedEffect(uiState.calculatedCarbs) {
-        if (uiState.calculatedCarbs != null) {
+fun CarbsFromInsulin(
+    uiState: CalculatorUiState,
+    calculatorViewModel: CalculatorViewModel,
+    homeViewModel: HomeViewModel,
+    navController: NavController,
+    scrollState: ScrollState,
+    scope: CoroutineScope
+) {
+    val pagerState = rememberPagerState(
+        initialPage = uiState.selectedCarbCalculationIndex,
+        pageCount = { uiState.carbCalculationResults.size }
+    )
+
+    LaunchedEffect(uiState.carbCalculationResults) {
+        if (uiState.carbCalculationResults.isNotEmpty()) {
             scope.launch {
                 scrollState.animateScrollTo(scrollState.maxValue)
             }
+        }
+    }
+
+    LaunchedEffect(uiState.selectedCarbCalculationIndex) {
+        if (uiState.selectedCarbCalculationIndex != -1 && uiState.selectedCarbCalculationIndex < pagerState.pageCount) {
+            pagerState.scrollToPage(uiState.selectedCarbCalculationIndex)
         }
     }
 
@@ -227,11 +248,92 @@ fun CarbsFromInsulin(uiState: CalculatorUiState, calculatorViewModel: Calculator
                     Text(stringResource(id = R.string.settings_supper))
                 }
             }
-            uiState.calculatedCarbs?.let {
+
+            if (uiState.carbCalculationResults.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(stringResource(id = R.string.calculator_calculated_carbs), style = MaterialTheme.typography.titleMedium)
-                Text("%.2f".format(it), style = MaterialTheme.typography.headlineLarge, color = MaterialTheme.colorScheme.primary)
+
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(150.dp),
+                    contentPadding = PaddingValues(horizontal = 32.dp)
+                ) { page ->
+                    val result = uiState.carbCalculationResults[page]
+                    CarbsFromInsulinCard(result = result)
+                }
+
+                Row(
+                    Modifier
+                        .height(20.dp)
+                        .padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    repeat(pagerState.pageCount) { iteration ->
+                        val color = if (pagerState.currentPage == iteration) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
+                        Box(
+                            modifier = Modifier
+                                .padding(2.dp)
+                                .clip(CircleShape)
+                                .background(color)
+                                .size(8.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Button(onClick = {
+                    val currentResult = uiState.carbCalculationResults[pagerState.currentPage]
+                    homeViewModel.logInsulinAndCarbs(currentResult.dose, currentResult.carbs)
+                    calculatorViewModel.clearCarbsFromInsulin()
+                    navController.navigate(Screen.Home.route) {
+                        popUpTo(Screen.Calculator.route) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }) {
+                    Text(stringResource(id = R.string.calculator_log_insulin_and_carbs))
+                }
             }
+        }
+    }
+}
+
+@Composable
+fun CarbsFromInsulinCard(result: com.example.bloodsugar.features.calculator.CarbCalculationResult) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp),
+        elevation = CardDefaults.cardElevation(4.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = "%.1f u".format(result.dose),
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Icon(
+                Icons.Default.ArrowDownward,
+                contentDescription = "calculates to",
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
+            Text(
+                text = "%.1f g".format(result.carbs),
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
         }
     }
 }

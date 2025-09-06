@@ -105,7 +105,8 @@ fun HomeScreen(
             onCarbsChange = { homeViewModel.setCarbsValue(it) },
             onActivityTypeChange = { homeViewModel.setActivityType(it) },
             onActivityDurationChange = { homeViewModel.setActivityDuration(it) },
-            onActivityIntensityChange = { homeViewModel.setActivityIntensity(it) }
+            onActivityIntensityChange = { homeViewModel.setActivityIntensity(it) },
+            onTimestampChange = { homeViewModel.setNewRecordTimestamp(it) }
         )
     }
 

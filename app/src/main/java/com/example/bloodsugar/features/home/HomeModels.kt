@@ -50,5 +50,6 @@ data class HomeUiState(
     val high: Float = 0f,
     val veryHigh: Float = 0f,
     val scrollToHistory: Boolean = false,
-    val avgDailyInsulin: Float? = null
+    val avgDailyInsulin: Float? = null,
+    val newRecordTimestamp: Long? = null
 )
