@@ -274,6 +274,15 @@ fun SettingsScreen(settingsViewModel: SettingsViewModel = viewModel()) {
                             enabled = uiState.trendNotificationEnabled
                         )
                     }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = uiState.trendNotificationTimeWindow,
+                        onValueChange = { settingsViewModel.setTrendNotificationTimeWindow(it) },
+                        label = { Text(stringResource(id = R.string.settings_trend_notification_time_window)) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = uiState.trendNotificationEnabled
+                    )
                 }
             }
 

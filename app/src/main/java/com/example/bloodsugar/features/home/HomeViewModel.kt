@@ -427,6 +427,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
             val lowThreshold = settingsDataStore.trendNotificationLowThreshold.first()
             val highThreshold = settingsDataStore.trendNotificationHighThreshold.first()
+            val timeWindowMinutes = settingsDataStore.trendNotificationTimeWindow.first()
 
             val since = System.currentTimeMillis() - TimeUnit.HOURS.toMillis(3)
             val recentRecords = repository.getRecordsInRange(since, System.currentTimeMillis()).first()
@@ -453,7 +454,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             // Check for low threshold
             if (slopePerMs < 0) {
                 val crossingTimeMs = ((lowThreshold - intercept) / slopePerMs) + startTime
-                if (crossingTimeMs > System.currentTimeMillis()) {
+                val timeToCrossing = crossingTimeMs - System.currentTimeMillis()
+                if (crossingTimeMs > System.currentTimeMillis() && timeToCrossing <= TimeUnit.MINUTES.toMillis(timeWindowMinutes.toLong())) {
                     scheduleTrendNotifications("low", lowThreshold, crossingTimeMs.toLong())
                 } else {
                     workManager.cancelUniqueWork("trend-notification-low")
@@ -465,7 +467,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             // Check for high threshold
             if (slopePerMs > 0) {
                 val crossingTimeMs = ((highThreshold - intercept) / slopePerMs) + startTime
-                if (crossingTimeMs > System.currentTimeMillis()) {
+                val timeToCrossing = crossingTimeMs - System.currentTimeMillis()
+                if (crossingTimeMs > System.currentTimeMillis() && timeToCrossing <= TimeUnit.MINUTES.toMillis(timeWindowMinutes.toLong())) {
                     scheduleTrendNotifications("high", highThreshold, crossingTimeMs.toLong())
                 } else {
                     workManager.cancelUniqueWork("trend-notification-high")

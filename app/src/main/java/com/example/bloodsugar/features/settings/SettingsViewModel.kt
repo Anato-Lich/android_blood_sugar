@@ -30,6 +30,7 @@ data class SettingsUiState(
     val trendNotificationEnabled: Boolean = false,
     val trendNotificationLowThreshold: String = "4.0",
     val trendNotificationHighThreshold: String = "10.0",
+    val trendNotificationTimeWindow: String = "60",
     val hasUnsavedChanges: Boolean = false
 )
 
@@ -66,7 +67,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 settingsDataStore.postMealNotificationDelay,
                 settingsDataStore.trendNotificationEnabled,
                 settingsDataStore.trendNotificationLowThreshold,
-                settingsDataStore.trendNotificationHighThreshold
+                settingsDataStore.trendNotificationHighThreshold,
+                settingsDataStore.trendNotificationTimeWindow
             ) { values ->
                 val breakfast = values[0] as Float
                 val dinner = values[1] as Float
@@ -79,6 +81,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 val trendEnabled = values[8] as Boolean
                 val trendLow = values[9] as Float
                 val trendHigh = values[10] as Float
+                val trendTimeWindow = values[11] as Int
 
                 _uiState.update {
                     it.copy(
@@ -93,6 +96,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                         trendNotificationEnabled = trendEnabled,
                         trendNotificationLowThreshold = trendLow.toString(),
                         trendNotificationHighThreshold = trendHigh.toString(),
+                        trendNotificationTimeWindow = trendTimeWindow.toString(),
                         hasUnsavedChanges = false
                     )
                 }
@@ -144,6 +148,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         _uiState.update { it.copy(trendNotificationHighThreshold = threshold, hasUnsavedChanges = true) }
     }
 
+    fun setTrendNotificationTimeWindow(window: String) {
+        _uiState.update { it.copy(trendNotificationTimeWindow = window, hasUnsavedChanges = true) }
+    }
+
     fun saveSettings() {
         viewModelScope.launch {
             settingsDataStore.saveSettings(
@@ -157,7 +165,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 postMealDelay = _uiState.value.postMealNotificationDelay.toIntOrNull() ?: 120,
                 trendNotificationsEnabled = _uiState.value.trendNotificationEnabled,
                 trendLowThreshold = _uiState.value.trendNotificationLowThreshold.replace(',', '.').toFloatOrNull() ?: 4.0f,
-                trendHighThreshold = _uiState.value.trendNotificationHighThreshold.replace(',', '.').toFloatOrNull() ?: 10.0f
+                trendHighThreshold = _uiState.value.trendNotificationHighThreshold.replace(',', '.').toFloatOrNull() ?: 10.0f,
+                trendTimeWindow = _uiState.value.trendNotificationTimeWindow.toIntOrNull() ?: 60
             )
             _uiState.update { it.copy(hasUnsavedChanges = false) }
         }

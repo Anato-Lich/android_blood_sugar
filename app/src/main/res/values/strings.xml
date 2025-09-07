@@ -164,6 +164,7 @@
     <string name="settings_enable_trend_notifications">Enable trend notifications</string>
     <string name="settings_low_threshold">Low Threshold</string>
     <string name="settings_high_threshold">High Threshold</string>
+    <string name="settings_trend_notification_time_window">Time window to predict (minutes)</string>
     <string name="settings_export_data_title">Export Data</string>
     <string name="settings_export_as_csv">Export as CSV</string>
     <string name="settings_export_as_pdf">Export as PDF</string>

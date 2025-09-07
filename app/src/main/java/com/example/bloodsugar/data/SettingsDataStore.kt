@@ -29,6 +29,7 @@ class SettingsDataStore(context: Context) {
         val TREND_NOTIFICATION_ENABLED = booleanPreferencesKey("trend_notification_enabled")
         val TREND_NOTIFICATION_LOW_THRESHOLD = floatPreferencesKey("trend_notification_low_threshold")
         val TREND_NOTIFICATION_HIGH_THRESHOLD = floatPreferencesKey("trend_notification_high_threshold")
+        val TREND_NOTIFICATION_TIME_WINDOW = intPreferencesKey("trend_notification_time_window")
 
         const val BREAKFAST_COEFFICIENT_DEFAULT = 0f
         const val DINNER_COEFFICIENT_DEFAULT = 0f
@@ -41,6 +42,7 @@ class SettingsDataStore(context: Context) {
         const val TREND_NOTIFICATION_ENABLED_DEFAULT = false
         const val TREND_NOTIFICATION_LOW_THRESHOLD_DEFAULT = 4.0f
         const val TREND_NOTIFICATION_HIGH_THRESHOLD_DEFAULT = 10.0f
+        const val TREND_NOTIFICATION_TIME_WINDOW_DEFAULT = 60
     }
 
     val breakfastCoefficient: Flow<Float> = dataStore.data.map {
@@ -87,11 +89,16 @@ class SettingsDataStore(context: Context) {
         it[PreferencesKeys.TREND_NOTIFICATION_HIGH_THRESHOLD] ?: PreferencesKeys.TREND_NOTIFICATION_HIGH_THRESHOLD_DEFAULT
     }
 
+    val trendNotificationTimeWindow: Flow<Int> = dataStore.data.map {
+        it[PreferencesKeys.TREND_NOTIFICATION_TIME_WINDOW] ?: PreferencesKeys.TREND_NOTIFICATION_TIME_WINDOW_DEFAULT
+    }
+
     suspend fun saveSettings(
         breakfast: Float, dinner: Float, supper: Float,
         carbsPerBu: Float, dailyCarbsGoal: Float, insulinDoseAccuracy: Float,
         postMealEnabled: Boolean, postMealDelay: Int,
-        trendNotificationsEnabled: Boolean, trendLowThreshold: Float, trendHighThreshold: Float
+        trendNotificationsEnabled: Boolean, trendLowThreshold: Float, trendHighThreshold: Float,
+        trendTimeWindow: Int
     ) {
         dataStore.edit {
             it[PreferencesKeys.BREAKFAST_COEFFICIENT] = breakfast
@@ -105,6 +112,7 @@ class SettingsDataStore(context: Context) {
             it[PreferencesKeys.TREND_NOTIFICATION_ENABLED] = trendNotificationsEnabled
             it[PreferencesKeys.TREND_NOTIFICATION_LOW_THRESHOLD] = trendLowThreshold
             it[PreferencesKeys.TREND_NOTIFICATION_HIGH_THRESHOLD] = trendHighThreshold
+            it[PreferencesKeys.TREND_NOTIFICATION_TIME_WINDOW] = trendTimeWindow
         }
     }
 }
